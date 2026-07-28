@@ -1,0 +1,13 @@
+{
+  "name": "calcada-alta-import-pipeline",
+  "version": "1.0.0",
+  "description": "Transform iComanda exports to Supabase",
+  "main": "index.js",
+  "scripts": {
+    "import": "node index.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "@supabase/supabase-js": "^2.38.0"
+  }
+}
