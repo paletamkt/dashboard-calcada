@@ -1,15 +1,18 @@
 const XLSX = require('xlsx');
 const { createClient } = require('@supabase/supabase-js');
 
+const isDryRun = process.argv.includes('--dry-run');
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌ SUPABASE_URL e SUPABASE_KEY não estão definidas. Crie .env');
+// Precisa da service_role key (não a anon) — as tabelas ca_* têm RLS habilitado
+// sem policy para o role anon, então a anon key não consegue mais escrever nelas.
+if (!isDryRun && (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)) {
+  console.error('❌ SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY não estão definidas. Crie .env');
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = isDryRun ? null : createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ===== FUNÇÕES DE NORMALIZAÇÃO =====
 
@@ -244,7 +247,12 @@ async function upsertTable(tableName, data, conflictColumn) {
 
 // ===== MAIN =====
 
-async function importFromExcel(filePath) {
+function preview(label, rows, n = 3) {
+  console.log(`\n--- ${label} (${rows.length} linhas, mostrando até ${n}) ---`);
+  console.log(JSON.stringify(rows.slice(0, n), null, 2));
+}
+
+async function importFromExcel(filePath, { dryRun }) {
   console.log(`📂 Lendo arquivo: ${filePath}`);
 
   const workbook = XLSX.readFile(filePath);
@@ -265,6 +273,20 @@ async function importFromExcel(filePath) {
   - Produtos: ${produtosData.length}
   - Comandas: ${comandasData.length}`);
 
+  if (dryRun) {
+    console.log('\n🔍 DRY RUN — nada será enviado ao Supabase. Confira os campos abaixo,');
+    console.log('   principalmente os marcados como TODO no código (caixa, tipo, margem_pct,');
+    console.log('   fat_pct) — se aparecerem null, o nome da coluna no Excel real é diferente');
+    console.log('   do que o script está procurando e precisa ser ajustado.');
+    preview('ca_turno', turnoData);
+    preview('ca_grupos', gruposData);
+    preview('ca_horario', horarioData);
+    preview('ca_atendente', atendenteData);
+    preview('ca_produtos', produtosData);
+    preview('ca_comandas', comandasData);
+    return;
+  }
+
   console.log(`\n📤 Fazendo upsert no Supabase...`);
 
   // IMPORTANTE: onConflict só evita duplicata se existir uma UNIQUE/PRIMARY KEY
@@ -284,13 +306,16 @@ async function importFromExcel(filePath) {
   console.log(`\n✅ Import completo!`);
 }
 
-const filePath = process.argv[2];
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+const filePath = args.find(a => !a.startsWith('--'));
+
 if (!filePath) {
-  console.error('❌ Uso: node index.js <caminho-do-arquivo.xlsx>');
+  console.error('❌ Uso: node index.js <caminho-do-arquivo.xlsx> [--dry-run]');
   process.exit(1);
 }
 
-importFromExcel(filePath)
+importFromExcel(filePath, { dryRun })
   .catch(err => {
     console.error('❌ Erro:', err.message);
     process.exit(1);

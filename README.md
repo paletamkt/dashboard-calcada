@@ -166,11 +166,30 @@ Qualquer push no branch `main` é publicado automaticamente pelo Cloudflare Page
 
 ## Import de dados
 
-Ver [import-pipeline/README](import-pipeline/) — ou diretamente:
-
 ```bash
 cd import-pipeline
 npm install
-cp .env.example .env   # preencha SUPABASE_URL e SUPABASE_KEY
+```
+
+**1. Teste primeiro em dry-run** (não grava nada no Supabase, só mostra o que seria
+enviado — nenhuma configuração de `.env` é necessária):
+
+```bash
+node index.js caminho/para/export.xlsx --dry-run
+```
+
+Confira no output se `caixa`, `tipo` (em `ca_turno`), `margem_pct` (em `ca_grupos`)
+e `fat_pct` (em `ca_produtos`) vieram preenchidos — se aparecerem `null`, o nome da
+coluna no Excel real é diferente do que o script espera (marcado com `// TODO` em
+`import-pipeline/index.js`) e precisa ser ajustado antes do próximo passo.
+
+**2. Só depois disso, rode de verdade:**
+
+```bash
+cp .env.example .env   # preencha SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY
 node index.js caminho/para/export.xlsx
 ```
+
+Isso grava no banco de produção. `ca_turno` usa `caixa` como chave de upsert — se
+essa não for de fato a coluna com constraint UNIQUE no banco, rodar o import mais de
+uma vez pode duplicar linhas.
