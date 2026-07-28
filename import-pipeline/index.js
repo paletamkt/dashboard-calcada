@@ -1,7 +1,36 @@
 const XLSX = require('xlsx');
 const { createClient } = require('@supabase/supabase-js');
 
-const isDryRun = process.argv.includes('--dry-run');
+// ===== ARGUMENTOS =====
+
+const args = process.argv.slice(2);
+const isDryRun = args.includes('--dry-run');
+const turnoOnly = args.includes('--turno-only');
+const monthly = args.includes('--monthly');
+const filePath = args.find(a => !a.startsWith('--'));
+
+const USAGE = `Uso:
+  node index.js <arquivo.xlsx> --dry-run       # confere os dados, não grava nada
+  node index.js <arquivo.xlsx> --turno-only    # export SEMANAL: grava só ca_turno (seguro toda semana)
+  node index.js <arquivo.xlsx> --monthly       # relatório MENSAL FECHADO: grava tudo`;
+
+if (!filePath) {
+  console.error(`❌ ${USAGE}`);
+  process.exit(1);
+}
+
+if (!isDryRun && !turnoOnly && !monthly) {
+  console.error(`❌ Escolha explicitamente --turno-only (export semanal) ou --monthly (fechamento do mês).\n${USAGE}`);
+  process.exit(1);
+}
+
+if (turnoOnly && monthly) {
+  console.error('❌ Use --turno-only OU --monthly, não os dois.');
+  process.exit(1);
+}
+
+// ===== SUPABASE =====
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -261,7 +290,7 @@ function preview(label, rows, n = 3) {
   console.log(JSON.stringify(rows.slice(0, n), null, 2));
 }
 
-async function importFromExcel(filePath, { dryRun }) {
+async function importFromExcel(filePath, { dryRun, mode }) {
   console.log(`📂 Lendo arquivo: ${filePath}`);
 
   const workbook = XLSX.readFile(filePath);
@@ -293,21 +322,21 @@ async function importFromExcel(filePath, { dryRun }) {
     return;
   }
 
-  console.log(`\n📤 Fazendo upsert no Supabase...`);
+  console.log(`\n📤 Fazendo upsert no Supabase (modo: ${mode})...`);
 
-  // IMPORTANTE: onConflict só evita duplicata se existir uma UNIQUE/PRIMARY KEY
-  // constraint no banco cobrindo exatamente essas colunas — não confirmei isso
-  // contra o projeto Supabase real (sem acesso de SQL a ele). 'caixa' parece ser
-  // o identificador único de cada lançamento do iComanda em ca_turno; validar
-  // antes de rodar em produção, ou o import pode gerar linhas duplicadas.
-  //
-  // ATENÇÃO — tabelas por período (ca_grupos, ca_horario, ca_atendente, ca_produtos,
-  // ca_comandas) são agregadas por (nome/hora, periodo) onde periodo é o MÊS
-  // ("Abr/26"), não a semana. Rodar este import com um export SEMANAL faz o
-  // upsert SOBRESCREVER o registro do mês inteiro com os totais só daquela
-  // semana — não soma. Não rode em produção com arquivos semanais até resolver
-  // essa questão (ver conversa com o usuário / README).
+  // ca_turno tem granularidade diária de verdade (coluna 'data' + 'caixa' como
+  // identificador único do lançamento) — seguro pra importar toda semana.
   await upsertTable('ca_turno', turnoData, 'caixa');
+
+  if (mode === 'turno-only') {
+    console.log(`\n✅ Import completo (só ca_turno — as tabelas por período não foram tocadas)!`);
+    return;
+  }
+
+  // As tabelas abaixo são agregadas por (nome/hora, periodo) onde periodo é o
+  // MÊS ("Abr/26"), não a semana — só rodar com um relatório MENSAL FECHADO do
+  // iComanda (--monthly), nunca com um export semanal, ou o upsert sobrescreve
+  // o mês inteiro com os totais parciais daquela semana.
   await upsertTable('ca_grupos', gruposData, 'nome,periodo');
   await upsertTable('ca_horario', horarioData, 'hora,periodo');
   await upsertTable('ca_atendente', atendenteData, 'nome,periodo');
@@ -319,16 +348,7 @@ async function importFromExcel(filePath, { dryRun }) {
   console.log(`\n✅ Import completo!`);
 }
 
-const args = process.argv.slice(2);
-const dryRun = args.includes('--dry-run');
-const filePath = args.find(a => !a.startsWith('--'));
-
-if (!filePath) {
-  console.error('❌ Uso: node index.js <caminho-do-arquivo.xlsx> [--dry-run]');
-  process.exit(1);
-}
-
-importFromExcel(filePath, { dryRun })
+importFromExcel(filePath, { dryRun: isDryRun, mode: turnoOnly ? 'turno-only' : 'monthly' })
   .catch(err => {
     console.error('❌ Erro:', err.message);
     process.exit(1);

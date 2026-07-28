@@ -166,30 +166,40 @@ Qualquer push no branch `main` é publicado automaticamente pelo Cloudflare Page
 
 ## Import de dados
 
+Testado contra um export real do iComanda (planilha semanal). O mapeamento das
+colunas está confirmado e validado.
+
+Existem **dois tipos de export** e o script trata cada um de um jeito, porque as
+tabelas do banco têm granularidades diferentes:
+
+- **`ca_turno`** tem uma linha por lançamento diário (`data` + `caixa` como
+  identificador único) — pode ser importado toda semana sem problema, os dados
+  só se somam ao longo do tempo.
+- **`ca_grupos`, `ca_horario`, `ca_atendente`, `ca_produtos`, `ca_comandas`**
+  guardam só um total por **mês** (ex: `Abr/26`), sem granularidade semanal —
+  se importar um export semanal nelas, o total do mês vira só a última semana
+  importada (sobrescreve, não soma). **Só importe essas tabelas com um
+  relatório mensal fechado**, no fim do mês.
+
+O script exige que você escolha o modo explicitamente, pra não ter erro por
+distração:
+
 ```bash
 cd import-pipeline
 npm install
-```
 
-**1. Teste primeiro em dry-run** (não grava nada no Supabase, só mostra o que seria
-enviado — nenhuma configuração de `.env` é necessária):
-
-```bash
+# 1. sempre confira antes com dry-run (não grava nada, não precisa de .env)
 node index.js caminho/para/export.xlsx --dry-run
-```
 
-Confira no output se `caixa`, `tipo` (em `ca_turno`), `margem_pct` (em `ca_grupos`)
-e `fat_pct` (em `ca_produtos`) vieram preenchidos — se aparecerem `null`, o nome da
-coluna no Excel real é diferente do que o script espera (marcado com `// TODO` em
-`import-pipeline/index.js`) e precisa ser ajustado antes do próximo passo.
-
-**2. Só depois disso, rode de verdade:**
-
-```bash
+# 2. export SEMANAL — grava só ca_turno
 cp .env.example .env   # preencha SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY
-node index.js caminho/para/export.xlsx
+node index.js caminho/para/export_semanal.xlsx --turno-only
+
+# 3. relatório MENSAL FECHADO (fim do mês) — grava tudo
+node index.js caminho/para/relatorio_mensal.xlsx --monthly
 ```
 
-Isso grava no banco de produção. `ca_turno` usa `caixa` como chave de upsert — se
-essa não for de fato a coluna com constraint UNIQUE no banco, rodar o import mais de
-uma vez pode duplicar linhas.
+`ca_turno` usa `caixa` como chave de upsert (parece ser o identificador único do
+lançamento no iComanda, mas isso não foi confirmado contra a constraint real do
+banco — se rodar o mesmo arquivo duas vezes e aparecerem linhas duplicadas, essa
+é a causa mais provável).
