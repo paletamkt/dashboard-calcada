@@ -95,17 +95,20 @@ function processTurno(workbook) {
   return data
     .filter(row => row['Data'] || row['data'])
     .map(row => ({
+      // TODO: confirmar contra um export real do iComanda — 'caixa' e 'tipo'
+      // existem na tabela mas não havia coluna correspondente conhecida no Excel.
+      caixa: row['Caixa'] || row['caixa'] || null,
       data: normalizeDate(row['Data'] || row['data']),
       semana: row['Semana'] || row['semana'],
       turno: row['Turno'] || row['turno'],
+      tipo: row['Tipo'] || row['tipo'] || null,
       usuario: row['Usuario'] || row['usuario'] || row['Usuário'],
       faturado: normalizeCurrency(row['R$ Faturado']),
       custo: normalizeCurrency(row['R$ Custo']),
       servico: normalizeCurrency(row['R$ Serviço']),
-      margem: normalizeCurrency(row['R$ Margem']),
       comandas: normalizeInteger(row['Comandas']),
       pessoas: normalizeInteger(row['Pessoas']),
-      obs: row['OBS'] || row['obs']
+      ticket_medio: normalizeCurrency(row['Ticket Médio']) ?? null
     }))
     .filter(row => row.data && row.turno);
 }
@@ -124,7 +127,8 @@ function processGrupos(workbook) {
       qtd: normalizeInteger(row['Qtd.'] || row['qtd']),
       faturado: normalizeCurrency(row['Faturado']),
       custo: normalizeCurrency(row['Custo']),
-      margem: normalizeCurrency(row['Margem']),
+      margem_val: normalizeCurrency(row['Margem']),
+      margem_pct: normalizePercent(row['% Margem']) ?? null, // TODO: confirmar coluna do Excel
       periodo: period
     }))
     .filter(row => row.nome);
@@ -195,7 +199,7 @@ function processProdutos(workbook) {
       custo: normalizeCurrency(row['R$ Custo']),
       custo_pct: normalizePercent(row['% Custo']),
       margem: normalizeCurrency(row['R$ Margem']),
-      margem_pct: normalizePercent(row['%']),
+      fat_pct: normalizePercent(row['%']), // TODO: confirmar se '%' do Excel é % de faturamento (fat_pct) ou % de margem
       periodo: period
     }))
     .filter(row => row.nome);
@@ -263,7 +267,12 @@ async function importFromExcel(filePath) {
 
   console.log(`\n📤 Fazendo upsert no Supabase...`);
 
-  await upsertTable('ca_turno', turnoData, 'data,turno,usuario');
+  // IMPORTANTE: onConflict só evita duplicata se existir uma UNIQUE/PRIMARY KEY
+  // constraint no banco cobrindo exatamente essas colunas — não confirmei isso
+  // contra o projeto Supabase real (sem acesso de SQL a ele). 'caixa' parece ser
+  // o identificador único de cada lançamento do iComanda em ca_turno; validar
+  // antes de rodar em produção, ou o import pode gerar linhas duplicadas.
+  await upsertTable('ca_turno', turnoData, 'caixa');
   await upsertTable('ca_grupos', gruposData, 'nome,periodo');
   await upsertTable('ca_horario', horarioData, 'hora,periodo');
   await upsertTable('ca_atendente', atendenteData, 'nome,periodo');

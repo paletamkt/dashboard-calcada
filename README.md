@@ -14,41 +14,53 @@ Cloudflare Pages + GitHub. Push no branch `main` = deploy automático (frontend 
 
 ## Schema das tabelas Supabase
 
+Confirmado direto no banco (via `/api/<tabela>`), não é um schema teórico.
+
 ### `ca_turno`
 | coluna | tipo |
 |---|---|
+| id | INTEGER (PK) |
+| caixa | INTEGER |
 | data | DATE |
 | semana | TEXT |
 | turno | TEXT |
+| tipo | TEXT |
 | usuario | TEXT |
 | faturado | DECIMAL |
 | custo | DECIMAL |
 | servico | DECIMAL |
-| margem | DECIMAL |
 | comandas | INTEGER |
 | pessoas | INTEGER |
-| obs | TEXT |
+| ticket_medio | DECIMAL |
+| created_at | TIMESTAMP |
 
 ### `ca_grupos`
 | coluna | tipo |
 |---|---|
-| nome | TEXT |
+| id | INTEGER (PK) |
+| periodo | TEXT |
 | qtd | INTEGER |
+| nome | TEXT |
 | faturado | DECIMAL |
 | custo | DECIMAL |
-| margem | DECIMAL |
-| periodo | TEXT |
+| margem_val | DECIMAL |
+| margem_pct | DECIMAL |
+| created_at | TIMESTAMP |
 
 ### `ca_horario`
 | coluna | tipo |
 |---|---|
+| id | INTEGER (PK) |
+| periodo | TEXT |
 | hora | INTEGER (0-23) |
 | faturado | DECIMAL |
-| periodo | TEXT |
+| created_at | TIMESTAMP |
 
 ### `ca_atendente`
 | coluna | tipo |
 |---|---|
+| id | INTEGER (PK) |
+| periodo | TEXT |
 | nome | TEXT |
 | r_comanda | DECIMAL |
 | r_produto | DECIMAL |
@@ -59,38 +71,44 @@ Cloudflare Pages + GitHub. Push no branch `main` = deploy automático (frontend 
 | produtos | INTEGER |
 | ticket_medio | DECIMAL |
 | ticket_pessoa | DECIMAL |
-| periodo | TEXT |
+| created_at | TIMESTAMP |
 
 ### `ca_produtos`
 | coluna | tipo |
 |---|---|
-| nome | TEXT |
+| id | INTEGER (PK) |
+| periodo | TEXT |
 | qtd | INTEGER |
+| nome | TEXT |
 | faturado | DECIMAL |
 | custo | DECIMAL |
 | custo_pct | DECIMAL |
 | margem | DECIMAL |
-| margem_pct | DECIMAL |
-| periodo | TEXT |
+| fat_pct | DECIMAL |
+| created_at | TIMESTAMP |
 
 ### `ca_comandas`
 | coluna | tipo |
 |---|---|
+| id | INTEGER (PK) |
+| periodo | TEXT |
 | nome | TEXT |
 | qtd_pedidos | INTEGER |
 | total | DECIMAL |
 | ticket_medio | DECIMAL |
 | participacao | DECIMAL |
-| periodo | TEXT |
+| created_at | TIMESTAMP |
 
 ### `ca_notas`
 | coluna | tipo |
 |---|---|
-| mes | TEXT |
-| tipo | TEXT |
-| titulo | TEXT |
-| conteudo | TEXT |
+| id | INTEGER (PK) |
+| contexto | TEXT |
+| periodo | TEXT |
+| tag | TEXT |
+| texto | TEXT |
 | ativo | BOOLEAN |
+| created_at | TIMESTAMP |
 
 ## Arquitetura de dados
 
