@@ -112,10 +112,32 @@ function splitValueAndPercent(value) {
 // Comparação por nome normalizado: o Excel/iComanda pode salvar acentos (ex: "Horário")
 // numa forma de composição Unicode diferente da string literal no código, o que quebra
 // um lookup direto por chave (workbook.Sheets['Horário'] retornava undefined).
-function findSheet(workbook, name) {
-  const target = name.normalize('NFC');
-  const found = workbook.SheetNames.find(n => n.normalize('NFC') === target);
-  return found ? workbook.Sheets[found] : undefined;
+// O nome da ABA varia de forma inconsistente entre exports do iComanda (fica
+// truncado em 31 caracteres pelo Excel, às vezes é renomeado pelo usuário,
+// às vezes fica com um nome genérico tipo "Sheet1"). O título real, estável,
+// está sempre na célula A1 da própria aba — é isso que usamos pra identificar
+// qual aba é qual, não o nome da aba.
+const SHEET_KEYWORDS = {
+  'Turno': ['exportarcontrolshop', 'controlshop'],
+  'Grupo de Produtos': ['grupodeprodutos'],
+  'Horário': ['horario'],
+  'Por Atendente': ['poratendente'],
+  'Resumo de Produtos': ['resumodeprodutos'],
+  'Tipos de Comandas': ['tiposdecomandas']
+};
+
+function normalizeText(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findSheet(workbook, canonicalName) {
+  const keywords = SHEET_KEYWORDS[canonicalName] || [normalizeText(canonicalName)];
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const title = normalizeText(sheet['A1']?.v || sheetName);
+    if (keywords.some(k => title.includes(k))) return sheet;
+  }
+  return undefined;
 }
 
 function extractPeriodFromHeader(sheet) {
