@@ -14,9 +14,7 @@ const MAX_LIMIT = 10000;
 // /api/<tabela> direto, sem passar pelo login.
 async function verifyUser(request, env) {
   const auth = request.headers.get('Authorization');
-  if (!auth || !auth.startsWith('Bearer ')) {
-    return { ok: false, reason: 'sem cabeçalho Authorization' };
-  }
+  if (!auth || !auth.startsWith('Bearer ')) return false;
   const token = auth.slice('Bearer '.length);
 
   const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
@@ -25,9 +23,7 @@ async function verifyUser(request, env) {
       Authorization: `Bearer ${token}`
     }
   });
-  if (res.ok) return { ok: true };
-  const detail = await res.text();
-  return { ok: false, reason: `supabase respondeu ${res.status}: ${detail}` };
+  return res.ok;
 }
 
 export async function onRequestGet(context) {
@@ -41,11 +37,8 @@ export async function onRequestGet(context) {
     });
   }
 
-  const auth = await verifyUser(request, env);
-  if (!auth.ok) {
-    // TODO(temporário): expõe o motivo real pra depurar o 401 em produção.
-    // Remover o campo "debug" depois de resolver.
-    return new Response(JSON.stringify({ error: 'Não autenticado', debug: auth.reason }), {
+  if (!(await verifyUser(request, env))) {
+    return new Response(JSON.stringify({ error: 'Não autenticado' }), {
       status: 401,
       headers: { 'content-type': 'application/json' }
     });

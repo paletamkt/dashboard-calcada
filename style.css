@@ -27,6 +27,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(
 .hdr p{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px;text-transform:uppercase;letter-spacing:.1em}
 .hdr-right{display:flex;align-items:center;gap:8px}
 .hdr-badge{background:var(--vermelho);color:#fff;font-size:11px;font-weight:600;padding:5px 16px;border-radius:20px;letter-spacing:.02em}
+.hdr-badge-alt{background:rgba(255,255,255,.1);color:rgba(255,255,255,.85)}
 .sync-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.55);font-size:11px;padding:5px 13px;border-radius:20px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
 .sync-btn:hover{background:rgba(255,255,255,.12)}
 

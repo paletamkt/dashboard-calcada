@@ -51,6 +51,20 @@ async function fetchAll(table, limit=10000) {
   return r.json();
 }
 
+const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function currentMonthYM() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function currentMonthLabel() {
+  const d = new Date();
+  return `${MESES_ABREV[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+}
+function selectCurrentMonth(tab, value) {
+  const sel = document.getElementById(`sel-${tab}`);
+  if (sel && [...sel.options].some(o => o.value === value)) sel.value = value;
+}
+
 function fmtBRL(v) { return v != null ? 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'; }
 function fmtBRLh(v) { return `<span class="hide-val">${fmtBRL(v)}</span>`; }
 function fmtNum(v) { return v != null ? Number(v).toLocaleString('pt-BR') : '—'; }
@@ -1313,10 +1327,26 @@ async function loadAll() {
   populatePeriods('comandas',DATA.comandas);
   populateRankingFilters();
 
-  const totFat=DATA.turno.reduce((s,d)=>s+(Number(d.faturado)||0),0);
-  const meses=new Set(DATA.turno.map(d=>d.data?.slice(0,7))).size;
-  document.getElementById('hdrPeriodo').textContent=`${meses} meses · Fonte: iComanda`;
-  document.getElementById('hdrBadge').innerHTML=`Faturamento: <span class='hide-val'>${fmtBRL(totFat)}</span>`;
+  // Filtros de mês já abrem no mês corrente (se já existir dado pra ele).
+  const curYM = currentMonthYM();
+  const curLabel = currentMonthLabel();
+  selectCurrentMonth('turno', curYM);
+  selectCurrentMonth('grupos', curLabel);
+  selectCurrentMonth('horario', curLabel);
+  selectCurrentMonth('atendente', curLabel);
+  selectCurrentMonth('produtos', curLabel);
+  selectCurrentMonth('ranking', curLabel);
+  selectCurrentMonth('comandas', curLabel);
+
+  // Faturamento do topo = mês corrente até hoje (não o total histórico).
+  const turnoMes = DATA.turno.filter(d => d.data && d.data.slice(0,7) === curYM);
+  const totFatMes = turnoMes.reduce((s,d)=>s+(Number(d.faturado)||0),0);
+  const cmdSalao = turnoMes.filter(d=>d.tipo!=='delivery').reduce((s,d)=>s+(Number(d.comandas)||0),0);
+  const cmdDelivery = turnoMes.filter(d=>d.tipo==='delivery').reduce((s,d)=>s+(Number(d.comandas)||0),0);
+  const hoje = new Date();
+  document.getElementById('hdrPeriodo').textContent=`${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()} · Fonte: iComanda`;
+  document.getElementById('hdrBadge').innerHTML=`Faturamento (mês): <span class='hide-val'>${fmtBRL(totFatMes)}</span>`;
+  document.getElementById('hdrComandasBadge').innerHTML=`Salão: ${fmtNum(cmdSalao)} · Delivery: ${fmtNum(cmdDelivery)}`;
 
   renderTurno(); renderGrupos(); renderHorario();
   renderAtendente(); renderProdutos(); renderRanking(); renderCeo(); renderComandas();
