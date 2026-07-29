@@ -5,10 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calçada Alta — Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="logo-mark">
+      <div class="logo-c"></div>
+      <div class="logo-a"></div>
+    </div>
+    <h1 class="login-title">Calçada Alta</h1>
+    <p class="login-subtitle">Dashboard Operacional</p>
+
+    <form id="login-form" class="login-form">
+      <label for="login-email">E-mail</label>
+      <input type="email" id="login-email" autocomplete="username" required>
+
+      <label for="login-password">Senha</label>
+      <div class="login-password-wrap">
+        <input type="password" id="login-password" autocomplete="current-password" required>
+        <button type="button" id="toggle-password" class="login-eye" aria-label="Mostrar senha">👁</button>
+      </div>
+
+      <button type="submit" class="login-submit">Entrar</button>
+      <div id="login-error" class="login-error"></div>
+    </form>
+
+    <a href="#" id="forgot-password-link" class="login-link">Esqueci minha senha</a>
+
+    <form id="forgot-form" class="login-form" style="display:none">
+      <label for="forgot-email">E-mail pra recuperação</label>
+      <input type="email" id="forgot-email" required>
+      <button type="submit" class="login-submit">Enviar link de recuperação</button>
+      <div id="forgot-message" class="login-error"></div>
+      <a href="#" id="back-to-login-link" class="login-link">Voltar pro login</a>
+    </form>
+
+    <form id="reset-form" class="login-form" style="display:none">
+      <label for="reset-password">Nova senha</label>
+      <div class="login-password-wrap">
+        <input type="password" id="reset-password" autocomplete="new-password" required minlength="6">
+        <button type="button" id="toggle-reset-password" class="login-eye" aria-label="Mostrar senha">👁</button>
+      </div>
+      <button type="submit" class="login-submit">Salvar nova senha</button>
+      <div id="reset-message" class="login-error"></div>
+    </form>
+
+    <a href="#" id="dev-mode-link" class="login-link login-dev">Visão de desenvolvedor (dados fictícios)</a>
+  </div>
+</div>
+
+<div id="dashboard-root" style="display:none">
 
 <div class="hdr">
   <div class="logo-wrap">
@@ -25,6 +75,7 @@
     <div class="hdr-badge" id="hdrBadge">—</div>
     <button class="sync-btn" id="hideBtn" onclick="toggleValues()">👁 Ocultar valores</button>
     <button class="sync-btn" onclick="loadAll()">↻ Atualizar</button>
+    <button class="sync-btn" id="logoutBtn" onclick="doLogout()">Sair</button>
   </div>
 </div>
 
@@ -495,6 +546,9 @@
 
 <div class="footer"><b>Calçada Alta</b> — Dashboard Operacional · Dados: iComanda</div>
 
+</div> <!-- /dashboard-root -->
+
 <script src="app.js"></script>
+<script src="auth.js"></script>
 </body>
 </html>

@@ -45,7 +45,9 @@ function inferGrupo(nome, grupos) {
 }
 
 async function fetchAll(table, limit=10000) {
-  const r = await fetch(`/api/${table}?limit=${limit}`);
+  if (window.DEV_MODE) return (window.MOCK_DATA && window.MOCK_DATA[table]) || [];
+  const r = await fetch(`/api/${table}?limit=${limit}`, { headers: window.authHeaders ? window.authHeaders() : {} });
+  if (r.status === 401) { if (window.onAuthExpired) window.onAuthExpired(); return []; }
   return r.json();
 }
 
@@ -604,8 +606,10 @@ function populateRankingFilters() {
 let NOTAS = [];
 
 async function loadNotas() {
+  if (window.DEV_MODE) { NOTAS = (window.MOCK_DATA && window.MOCK_DATA.ca_notas) || []; return; }
   try {
-    const r = await fetch(`/api/ca_notas`);
+    const r = await fetch(`/api/ca_notas`, { headers: window.authHeaders ? window.authHeaders() : {} });
+    if (r.status === 401) { if (window.onAuthExpired) window.onAuthExpired(); NOTAS = []; return; }
     NOTAS = await r.json();
     if(!Array.isArray(NOTAS)) NOTAS = [];
   } catch(e) { NOTAS = []; }
@@ -1319,7 +1323,7 @@ async function loadAll() {
   renderNotasCeo(); renderNotasDiaSemana(); renderNotasAtendente();
 }
 
-loadAll();
+// loadAll() é chamado pelo auth.js, depois que o login (ou o modo desenvolvedor) é confirmado.
 
 // ===== OCULTAR VALORES =====
 let valuesHidden = false;

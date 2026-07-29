@@ -9,6 +9,23 @@ const ALLOWED_TABLES = new Set([
 
 const MAX_LIMIT = 10000;
 
+// Confirma que o token enviado pelo navegador é uma sessão válida do Supabase Auth.
+// Sem isso, a tela de login não protegeria nada — qualquer um poderia chamar
+// /api/<tabela> direto, sem passar pelo login.
+async function verifyUser(request, env) {
+  const auth = request.headers.get('Authorization');
+  if (!auth || !auth.startsWith('Bearer ')) return false;
+  const token = auth.slice('Bearer '.length);
+
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return res.ok;
+}
+
 export async function onRequestGet(context) {
   const { params, env, request } = context;
   const table = params.table;
@@ -16,6 +33,13 @@ export async function onRequestGet(context) {
   if (!ALLOWED_TABLES.has(table)) {
     return new Response(JSON.stringify({ error: 'Tabela não permitida' }), {
       status: 404,
+      headers: { 'content-type': 'application/json' }
+    });
+  }
+
+  if (!(await verifyUser(request, env))) {
+    return new Response(JSON.stringify({ error: 'Não autenticado' }), {
+      status: 401,
       headers: { 'content-type': 'application/json' }
     });
   }
