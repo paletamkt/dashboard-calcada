@@ -341,6 +341,18 @@ function preview(label, rows, n = 3) {
   console.log(JSON.stringify(rows.slice(0, n), null, 2));
 }
 
+async function logImport({ filePath, mode, periodos, contagens, sucesso, erro }) {
+  const { error } = await supabase.from('ca_import_log').insert({
+    arquivo: filePath.split('/').pop(),
+    modo: mode,
+    periodos,
+    contagens,
+    sucesso,
+    erro: erro || null
+  });
+  if (error) console.error('⚠️  Não consegui gravar o log de importação (o import em si funcionou):', error.message);
+}
+
 async function importFromExcel(filePath, { dryRun, mode }) {
   console.log(`📂 Lendo arquivo: ${filePath}`);
 
@@ -353,6 +365,16 @@ async function importFromExcel(filePath, { dryRun, mode }) {
   const atendenteData = processAtendente(workbook);
   const produtosData = processProdutos(workbook);
   const comandasData = processComandas(workbook);
+
+  const contagens = {
+    ca_turno: turnoData.length,
+    ca_grupos: gruposData.length,
+    ca_horario: horarioData.length,
+    ca_atendente: atendenteData.length,
+    ca_produtos: produtosData.length,
+    ca_comandas: comandasData.length
+  };
+  const periodos = [...new Set([...gruposData, ...comandasData].map(d => d.periodo).filter(Boolean))];
 
   console.log(`\n📊 Dados processados:
   - Turno: ${turnoData.length}
@@ -373,32 +395,39 @@ async function importFromExcel(filePath, { dryRun, mode }) {
     return;
   }
 
-  console.log(`\n📤 Fazendo upsert no Supabase (modo: ${mode})...`);
+  try {
+    console.log(`\n📤 Fazendo upsert no Supabase (modo: ${mode})...`);
 
-  // ca_turno tem granularidade diária de verdade (coluna 'data' + 'caixa' como
-  // identificador único do lançamento) — seguro pra importar toda semana.
-  await upsertTable('ca_turno', turnoData, 'caixa');
+    // ca_turno tem granularidade diária de verdade (coluna 'data' + 'caixa' como
+    // identificador único do lançamento) — seguro pra importar toda semana.
+    await upsertTable('ca_turno', turnoData, 'caixa');
 
-  // ca_comandas é pequena (poucas linhas por mês) e usada pro card de canais
-  // (Salão/Delivery) do topo do dashboard — atualiza toda vez, mesmo em
-  // --turno-only, pra esse card não ficar desatualizado ao longo do mês.
-  await replaceForPeriods('ca_comandas', comandasData);
+    // ca_comandas é pequena (poucas linhas por mês) e usada pro card de canais
+    // (Salão/Delivery) do topo do dashboard — atualiza toda vez, mesmo em
+    // --turno-only, pra esse card não ficar desatualizado ao longo do mês.
+    await replaceForPeriods('ca_comandas', comandasData);
 
-  if (mode === 'turno-only') {
-    console.log(`\n✅ Import completo (ca_turno + ca_comandas — as outras tabelas por período não foram tocadas)!`);
-    return;
+    if (mode === 'turno-only') {
+      console.log(`\n✅ Import completo (ca_turno + ca_comandas — as outras tabelas por período não foram tocadas)!`);
+      await logImport({ filePath, mode, periodos, contagens, sucesso: true });
+      return;
+    }
+
+    // As tabelas abaixo são agregadas por (nome/hora, periodo) onde periodo é o
+    // MÊS ("Abr/26"), não a semana — só rodar com um relatório MENSAL FECHADO do
+    // iComanda (--monthly), nunca com um export semanal, ou o import sobrescreve
+    // o mês inteiro com os totais parciais daquela semana.
+    await replaceForPeriods('ca_grupos', gruposData);
+    await replaceForPeriods('ca_horario', horarioData);
+    await replaceForPeriods('ca_atendente', atendenteData);
+    await replaceForPeriods('ca_produtos', produtosData);
+
+    console.log(`\n✅ Import completo!`);
+    await logImport({ filePath, mode, periodos, contagens, sucesso: true });
+  } catch (err) {
+    await logImport({ filePath, mode, periodos, contagens, sucesso: false, erro: err.message });
+    throw err;
   }
-
-  // As tabelas abaixo são agregadas por (nome/hora, periodo) onde periodo é o
-  // MÊS ("Abr/26"), não a semana — só rodar com um relatório MENSAL FECHADO do
-  // iComanda (--monthly), nunca com um export semanal, ou o import sobrescreve
-  // o mês inteiro com os totais parciais daquela semana.
-  await replaceForPeriods('ca_grupos', gruposData);
-  await replaceForPeriods('ca_horario', horarioData);
-  await replaceForPeriods('ca_atendente', atendenteData);
-  await replaceForPeriods('ca_produtos', produtosData);
-
-  console.log(`\n✅ Import completo!`);
 }
 
 importFromExcel(filePath, { dryRun: isDryRun, mode: turnoOnly ? 'turno-only' : 'monthly' })

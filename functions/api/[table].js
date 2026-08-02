@@ -4,7 +4,7 @@
 
 const ALLOWED_TABLES = new Set([
   'ca_turno', 'ca_grupos', 'ca_horario', 'ca_atendente',
-  'ca_produtos', 'ca_comandas', 'ca_notas'
+  'ca_produtos', 'ca_comandas', 'ca_notas', 'ca_import_log'
 ]);
 
 const MAX_LIMIT = 10000;
@@ -47,6 +47,8 @@ export async function onRequestGet(context) {
   let query;
   if (table === 'ca_notas') {
     query = 'select=*&ativo=eq.true&limit=100';
+  } else if (table === 'ca_import_log') {
+    query = 'select=*&order=created_at.desc&limit=30';
   } else {
     const url = new URL(request.url);
     const requested = parseInt(url.searchParams.get('limit'), 10);
