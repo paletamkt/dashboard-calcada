@@ -118,11 +118,17 @@ function labelToYM(label) {
   if (mi < 0) return null;
   return `${2000+parseInt(ano,10)}-${String(mi+1).padStart(2,'0')}`;
 }
+function sameMonthLastYear(label) {
+  const [mes, ano] = label.split('/');
+  return `${mes}/${String(parseInt(ano,10)-1).padStart(2,'0')}`;
+}
 function renderGeral() {
   const curLabel = document.getElementById('sel-geral').value || currentMonthLabel();
   const prevLabel = previousLabelOf(curLabel);
+  const yoyLabel = sameMonthLastYear(curLabel);
   const comandasMes = DATA.comandas.filter(d => d.periodo===curLabel);
   const comandasPrev = DATA.comandas.filter(d => d.periodo===prevLabel);
+  const comandasYoy = DATA.comandas.filter(d => d.periodo===yoyLabel);
 
   const hoje = new Date();
   const isMesAtual = curLabel === currentMonthLabel();
@@ -133,6 +139,7 @@ function renderGeral() {
   if (comandasMes.length === 0) {
     document.getElementById('geralFatNum').textContent = 'Sem dados ainda';
     document.getElementById('geralFatDelta').textContent = '';
+    document.getElementById('geralFatDeltaYoy').textContent = '';
     document.getElementById('geralFatNote').textContent = `Aguardando import de ${curLabel}`;
     document.getElementById('geralChannels').innerHTML = '';
     document.getElementById('geralKpis').innerHTML = '';
@@ -141,17 +148,20 @@ function renderGeral() {
     return;
   }
 
+  function deltaLine(elId, atual, anterior, rotulo) {
+    const el = document.getElementById(elId);
+    if (!(anterior > 0)) { el.textContent = ''; return; }
+    const delta = ((atual-anterior)/anterior*100);
+    el.className = 'hero-delta ' + (delta>=0?'up':'dn');
+    el.textContent = `${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}% ${rotulo}`;
+  }
+
   const totFat = comandasMes.reduce((s,d)=>s+(Number(d.total)||0),0);
   const totPrev = comandasPrev.reduce((s,d)=>s+(Number(d.total)||0),0);
+  const totYoy = comandasYoy.reduce((s,d)=>s+(Number(d.total)||0),0);
   document.getElementById('geralFatNum').innerHTML = `<span class="hide-val">${fmtBRL(totFat)}</span>`;
-  if (totPrev > 0) {
-    const delta = ((totFat-totPrev)/totPrev*100);
-    const el = document.getElementById('geralFatDelta');
-    el.className = 'hero-delta ' + (delta>=0?'up':'dn');
-    el.textContent = `${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}% vs. ${prevLabel} completo`;
-  } else {
-    document.getElementById('geralFatDelta').textContent = '';
-  }
+  deltaLine('geralFatDelta', totFat, totPrev, `vs. ${prevLabel}`);
+  deltaLine('geralFatDeltaYoy', totFat, totYoy, `vs. ${yoyLabel} (ano passado)`);
   document.getElementById('geralFatNote').textContent = 'Fonte: iComanda';
 
   // Canais — Salão (Mesa) vs Delivery (soma de tudo o resto, canais dinâmicos)
@@ -178,18 +188,20 @@ function renderGeral() {
 
   // KPIs secundários (a partir de ca_turno do mês — só mede Salão, é o que temos em tempo real)
   const curYM = labelToYM(curLabel);
+  const prevYM = labelToYM(prevLabel);
   const turnoMes = DATA.turno.filter(d => d.data && d.data.slice(0,7)===curYM);
+  const turnoPrev = DATA.turno.filter(d => d.data && d.data.slice(0,7)===prevYM);
   const totComandasMes = comandasMes.reduce((s,d)=>s+(Number(d.qtd_pedidos)||0),0);
   const ticketMedioMes = totComandasMes>0 ? totFat/totComandasMes : 0;
   const totPessoas = turnoMes.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
+  const totPessoasPrev = turnoPrev.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
   const totComandasTurno = turnoMes.reduce((s,d)=>s+(Number(d.comandas)||0),0);
-  const totCusto = turnoMes.reduce((s,d)=>s+(Number(d.custo)||0),0);
-  const totFatTurno = turnoMes.reduce((s,d)=>s+(Number(d.faturado)||0),0);
+  const deltaPessoas = totPessoasPrev>0 ? ((totPessoas-totPessoasPrev)/totPessoasPrev*100) : null;
   document.getElementById('geralKpis').innerHTML = `
     <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">todos os canais</div></div>
     <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">todos os canais</div></div>
-    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${totComandasTurno>0?(totPessoas/totComandasTurno).toFixed(1):'—'}</div><div class="kpi-s">salão</div></div>
-    <div class="kpi"><div class="kpi-l">Custo / faturamento</div><div class="kpi-v">${totFatTurno>0?fmtPct(totCusto/totFatTurno*100):'—'}</div><div class="kpi-s">salão</div></div>`;
+    <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · salão`:'salão'}</div></div>
+    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${totComandasTurno>0?(totPessoas/totComandasTurno).toFixed(1):'—'}</div><div class="kpi-s">salão</div></div>`;
 
   renderNotas('geralNotas', 'ceo', curLabel);
 
@@ -226,11 +238,23 @@ function renderOperacao() {
   const totCmd = rows.reduce((s,d)=>s+(Number(d.comandas)||0),0);
   const totPes = rows.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
   const tkMed = totCmd>0 ? totFat/totCmd : 0;
+
+  // ca_turno só mede o Salão — mostra também o total do mês com todos os canais
+  // (ca_comandas), quando o filtro for de um mês específico.
+  let totalTodosCanais = null;
+  if (p) {
+    const [ano, mes] = p.split('-');
+    const label = `${MESES_ABREV[parseInt(mes,10)-1]}/${ano.slice(2)}`;
+    const comandasP = DATA.comandas.filter(d=>d.periodo===label);
+    if (comandasP.length) totalTodosCanais = comandasP.reduce((s,d)=>s+(Number(d.total)||0),0);
+  }
+
   document.getElementById('operacaoKpis').innerHTML = `
     <div class="kpi"><div class="kpi-l">Faturamento (salão)</div><div class="kpi-v hide-val">${fmtBRL(totFat)}</div><div class="kpi-s">${rows.length} turnos</div></div>
-    <div class="kpi"><div class="kpi-l">Comandas</div><div class="kpi-v">${fmtNum(totCmd)}</div><div class="kpi-s">no período</div></div>
-    <div class="kpi"><div class="kpi-l">Pessoas</div><div class="kpi-v">${fmtNum(totPes)}</div><div class="kpi-s">no período</div></div>
-    <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(tkMed)}</div><div class="kpi-s">por comanda</div></div>`;
+    <div class="kpi"><div class="kpi-l">Faturamento total do mês</div><div class="kpi-v hide-val">${totalTodosCanais!=null?fmtBRL(totalTodosCanais):'—'}</div><div class="kpi-s">todos os canais</div></div>
+    <div class="kpi"><div class="kpi-l">Comandas</div><div class="kpi-v">${fmtNum(totCmd)}</div><div class="kpi-s">salão, no período</div></div>
+    <div class="kpi"><div class="kpi-l">Pessoas</div><div class="kpi-v">${fmtNum(totPes)}</div><div class="kpi-s">salão, no período</div></div>
+    <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(tkMed)}</div><div class="kpi-s">salão, por comanda</div></div>`;
 
   const periodo = p || currentMonthLabel();
   renderNotas('operacaoNotas', ['turno', 'diasemana'], periodo);
