@@ -305,31 +305,33 @@ async function upsertTable(tableName, data, conflictColumn) {
   console.log(`✅ ${tableName}: ${data.length} registros`);
 }
 
-// ca_comandas não tem constraint UNIQUE (nome,periodo) — em vez de upsert,
-// substitui as linhas do(s) período(s) presentes no arquivo por completo
-// (apaga e reinsere). Isso deixa seguro rodar toda semana: cada import vira
-// o "retrato mais atual" do mês em andamento, sem duplicar nem exigir a
-// constraint que ainda não existe. Só mexe nos períodos do próprio arquivo —
-// não toca no histórico de outros meses.
-async function replaceComandasForPeriods(data) {
+// ca_grupos/horario/atendente/produtos/comandas não têm constraint UNIQUE
+// (nome/hora, periodo) — já existem duplicatas históricas de cargas antigas
+// (anteriores a este pipeline) que impedem criar essa constraint, e por
+// decisão do usuário esse histórico não vai ser mexido agora. Em vez de
+// upsert, cada import SUBSTITUI as linhas do(s) período(s) presentes no
+// arquivo por completo (apaga e reinsere) — seguro rodar toda semana ou todo
+// mês, sem duplicar e sem depender da constraint. Só mexe nos períodos do
+// próprio arquivo — não toca no histórico de outros meses.
+async function replaceForPeriods(tableName, data) {
   if (!data || data.length === 0) return;
 
   const periodos = [...new Set(data.map(d => d.periodo).filter(Boolean))];
   if (periodos.length > 0) {
-    const { error: delError } = await supabase.from('ca_comandas').delete().in('periodo', periodos);
+    const { error: delError } = await supabase.from(tableName).delete().in('periodo', periodos);
     if (delError) {
-      console.error('❌ Erro ao limpar ca_comandas antes de reinserir:', delError);
+      console.error(`❌ Erro ao limpar ${tableName} antes de reinserir:`, delError);
       throw delError;
     }
   }
 
-  const { error } = await supabase.from('ca_comandas').insert(data).select();
+  const { error } = await supabase.from(tableName).insert(data).select();
   if (error) {
-    console.error('❌ Erro ao inserir em ca_comandas:', error);
+    console.error(`❌ Erro ao inserir em ${tableName}:`, error);
     throw error;
   }
 
-  console.log(`✅ ca_comandas: ${data.length} registros (período ${periodos.join(', ')} substituído)`);
+  console.log(`✅ ${tableName}: ${data.length} registros (período ${periodos.join(', ')} substituído)`);
 }
 
 // ===== MAIN =====
@@ -380,7 +382,7 @@ async function importFromExcel(filePath, { dryRun, mode }) {
   // ca_comandas é pequena (poucas linhas por mês) e usada pro card de canais
   // (Salão/Delivery) do topo do dashboard — atualiza toda vez, mesmo em
   // --turno-only, pra esse card não ficar desatualizado ao longo do mês.
-  await replaceComandasForPeriods(comandasData);
+  await replaceForPeriods('ca_comandas', comandasData);
 
   if (mode === 'turno-only') {
     console.log(`\n✅ Import completo (ca_turno + ca_comandas — as outras tabelas por período não foram tocadas)!`);
@@ -389,12 +391,12 @@ async function importFromExcel(filePath, { dryRun, mode }) {
 
   // As tabelas abaixo são agregadas por (nome/hora, periodo) onde periodo é o
   // MÊS ("Abr/26"), não a semana — só rodar com um relatório MENSAL FECHADO do
-  // iComanda (--monthly), nunca com um export semanal, ou o upsert sobrescreve
+  // iComanda (--monthly), nunca com um export semanal, ou o import sobrescreve
   // o mês inteiro com os totais parciais daquela semana.
-  await upsertTable('ca_grupos', gruposData, 'nome,periodo');
-  await upsertTable('ca_horario', horarioData, 'hora,periodo');
-  await upsertTable('ca_atendente', atendenteData, 'nome,periodo');
-  await upsertTable('ca_produtos', produtosData, 'nome,periodo');
+  await replaceForPeriods('ca_grupos', gruposData);
+  await replaceForPeriods('ca_horario', horarioData);
+  await replaceForPeriods('ca_atendente', atendenteData);
+  await replaceForPeriods('ca_produtos', produtosData);
 
   console.log(`\n✅ Import completo!`);
 }
