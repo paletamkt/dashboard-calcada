@@ -56,7 +56,7 @@ function generateMockData() {
   const nomes = ['Ana Souza', 'Bruno Lima', 'Carla Dias', 'Diego Alves'];
   const grupos = ['PRATOS EXECUTIVOS', 'ENTRADAS/PETISCOS', 'SALADAS', 'SOBREMESAS', 'BEBIDAS'];
   const produtos = ['Filé Mock à Parmegiana', 'Bolinho Fictício', 'Salada Teste', 'Suco Demo'];
-  const periodo = 'Jul/26';
+  const periodo = (typeof currentMonthLabel === 'function') ? currentMonthLabel() : 'Jul/26';
   const hoje = new Date();
 
   // Cobre ~2.5 meses pra sempre existir pelo menos 1 mês completo (não "parcial"),
@@ -117,7 +117,12 @@ function generateMockData() {
     { id: 3, contexto: 'atendente', periodo: 'geral', tag: 'aviso', texto: '[Dados fictícios] Exemplo de aviso por atendente.', ativo: true }
   ];
 
-  return { ca_turno: turno, ca_grupos, ca_horario, ca_atendente, ca_produtos, ca_comandas, ca_notas };
+  const ca_import_log = [
+    { id: 1, created_at: hoje.toISOString(), arquivo: 'export_semanal_fake.xlsx', modo: 'turno-only', periodos: [periodo], contagens: {ca_turno:24}, sucesso: true, erro: null },
+    { id: 2, created_at: new Date(hoje-7*86400000).toISOString(), arquivo: 'export_mensal_fake.xlsx', modo: 'monthly', periodos: [periodo], contagens: {ca_turno:30,ca_grupos:24,ca_produtos:260}, sucesso: true, erro: null }
+  ];
+
+  return { ca_turno: turno, ca_grupos, ca_horario, ca_atendente, ca_produtos, ca_comandas, ca_notas, ca_import_log };
 }
 
 function enableDevMode() {

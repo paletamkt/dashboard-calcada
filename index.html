@@ -61,488 +61,160 @@
 <div id="dashboard-root" style="display:none">
 
 <div class="hdr">
-  <div class="logo-wrap">
-    <div class="logo-mark">
-      <div class="logo-c"></div>
-      <div class="logo-a"></div>
-    </div>
+  <div class="hdr-left">
+    <div class="logo-mark"><div class="logo-c"></div><div class="logo-a"></div></div>
     <div>
-      <h1>Calçada Alta</h1>
-      <p id="hdrPeriodo">Carregando dados...</p>
+      <div class="hdr-title">Calçada Alta</div>
+      <div class="hdr-sub" id="hdrPeriodo">—</div>
     </div>
   </div>
   <div class="hdr-right">
-    <div class="hdr-badge" id="hdrBadge">—</div>
-    <div class="hdr-badge hdr-badge-alt" id="hdrComandasBadge">—</div>
-    <button class="sync-btn" id="hideBtn" onclick="toggleValues()">👁 Ocultar valores</button>
-    <button class="sync-btn" onclick="loadAll()">↻ Atualizar</button>
-    <button class="sync-btn" id="logoutBtn" onclick="doLogout()">Sair</button>
+    <button class="icon-btn" id="hideBtn" onclick="toggleValues()">👁 Ocultar valores</button>
+    <button class="icon-btn" onclick="loadAll()">↻ Atualizar</button>
+    <button class="icon-btn" id="logoutBtn" onclick="doLogout()">Sair</button>
   </div>
 </div>
 
+<div class="nav">
+  <button class="nav-btn active" data-page="geral" onclick="showPage('geral')">Visão Geral</button>
+  <button class="nav-btn" data-page="operacao" onclick="showPage('operacao')">Operação</button>
+  <button class="nav-btn" data-page="produtos" onclick="showPage('produtos')">Produtos</button>
+  <button class="nav-btn" data-page="equipe" onclick="showPage('equipe')">Equipe</button>
+  <button class="nav-btn" data-page="comparar" onclick="showPage('comparar')">Comparar</button>
+  <button class="nav-btn" data-page="importacoes" onclick="showPage('importacoes')">Importações</button>
+</div>
+
 <div class="wrap">
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('ceo')">📊 Visão CEO</button>
-    <button class="tab" onclick="showTab('turno')">📅 Por Turno</button>
-    <button class="tab" onclick="showTab('grupos')">🍽 Grupos de Produtos</button>
-    <button class="tab" onclick="showTab('produtos')">📋 Produtos</button>
-    <button class="tab" onclick="showTab('horario')">🕐 Horário</button>
-    <button class="tab" onclick="showTab('atendente')">👤 Atendentes</button>
-    <button class="tab" onclick="showTab('comandas')">🧾 Comandas</button>
-    <button class="tab" onclick="showTab('comparar')">⚖️ Comparar Períodos</button>
-    <button class="tab" onclick="showTab('ranking')">🏆 Ranking Detalhado</button>
+
+  <!-- ═══ VISÃO GERAL ═══ -->
+  <div class="page active" id="page-geral">
+    <div class="hero">
+      <div>
+        <div class="hero-lbl" id="geralFatLbl">FATURAMENTO</div>
+        <div class="hero-num hide-val" id="geralFatNum">—</div>
+        <div class="hero-delta" id="geralFatDelta"></div>
+      </div>
+      <div class="hero-note" id="geralFatNote"></div>
+    </div>
+
+    <div class="channels" id="geralChannels"></div>
+
+    <div class="grid4" id="geralKpis"></div>
+
+    <div id="geralNotas" class="notas"></div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Top grupos de produtos</span><span class="panel-sub" id="geralGruposPeriodo"></span></div>
+      <div class="rows" id="geralGruposRows"></div>
+    </div>
   </div>
 
-  <!-- TURNO -->
-  <div class="section" id="sec-turno">
-    <div class="kpi-row" id="kpi-turno"><div class="kpi"><div class="kpi-l">Carregando</div><div class="kpi-v">...</div></div></div>
+  <!-- ═══ OPERAÇÃO ═══ -->
+  <div class="page" id="page-operacao">
     <div class="controls">
-      <select class="period-select" id="sel-turno" onchange="renderTurno()"><option value="">Todos os meses</option></select>
-      <div class="filter-group" id="filter-turno">
-        <button class="filter-btn on" onclick="filterTurnoType('',this)">Todos</button>
-        <button class="filter-btn" onclick="filterTurnoType('almoco',this)">Almoço</button>
-        <button class="filter-btn" onclick="filterTurnoType('jantar',this)">Jantar</button>
-        <button class="filter-btn" onclick="filterTurnoType('cafe',this)">Café</button>
+      <select class="select" id="sel-turno" onchange="renderOperacao()"></select>
+      <div class="chip-group" id="filter-turno-tipo">
+        <button class="chip on" data-v="" onclick="filterTurno('',this)">Todos</button>
+        <button class="chip" data-v="cafe" onclick="filterTurno('cafe',this)">Café</button>
+        <button class="chip" data-v="almoco" onclick="filterTurno('almoco',this)">Almoço</button>
+        <button class="chip" data-v="jantar" onclick="filterTurno('jantar',this)">Jantar</button>
       </div>
-      <span class="count-badge" id="badge-turno"></span>
     </div>
-    <div class="tbl-card">
-      <div class="tbl-wrap"><table><thead><tr>
-        <th onclick="sortTable('turno','data')" data-col="data">Data<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','semana')" data-col="semana">Dia<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','turno')" data-col="turno">Turno<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','usuario')" data-col="usuario">Responsável<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','faturado')" data-col="faturado">Faturado<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','custo')" data-col="custo">Custo<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','servico')" data-col="servico">Serviço<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','comandas')" data-col="comandas">Comandas<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','pessoas')" data-col="pessoas">Pessoas<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('turno','ticket_medio')" data-col="ticket_medio">Ticket Médio<span class="sort-icon">↕</span></th>
-      </tr></thead><tbody id="body-turno"></tbody></table></div>
-      <div class="tbl-footer" id="footer-turno"></div>
+
+    <div class="grid4" id="operacaoKpis"></div>
+
+    <div id="operacaoNotas" class="notas"></div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Faturamento por horário</span></div>
+      <div class="rows" id="operacaoHorarioRows"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Turnos</span><span class="panel-sub" id="operacaoTurnoCount"></span></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th data-col="data" onclick="sortTable('turno','data')">Data<span class="sort-icon">↕</span></th>
+          <th data-col="semana" onclick="sortTable('turno','semana')">Dia<span class="sort-icon">↕</span></th>
+          <th data-col="turno" onclick="sortTable('turno','turno')">Turno<span class="sort-icon">↕</span></th>
+          <th data-col="usuario" onclick="sortTable('turno','usuario')">Usuário<span class="sort-icon">↕</span></th>
+          <th data-col="faturado" onclick="sortTable('turno','faturado')">Faturado<span class="sort-icon">↕</span></th>
+          <th data-col="comandas" onclick="sortTable('turno','comandas')">Comandas<span class="sort-icon">↕</span></th>
+          <th data-col="pessoas" onclick="sortTable('turno','pessoas')">Pessoas<span class="sort-icon">↕</span></th>
+          <th data-col="ticket_medio" onclick="sortTable('turno','ticket_medio')">Ticket<span class="sort-icon">↕</span></th>
+        </tr></thead>
+        <tbody id="body-turno"></tbody>
+      </table></div>
     </div>
   </div>
 
-  <!-- GRUPOS -->
-  <div class="section" id="sec-grupos">
+  <!-- ═══ PRODUTOS ═══ -->
+  <div class="page" id="page-produtos">
     <div class="controls">
-      <select class="period-select" id="sel-grupos" onchange="renderGrupos()"><option value="">Todos os meses</option></select>
-      <span class="count-badge" id="badge-grupos"></span>
+      <select class="select" id="sel-produtos" onchange="renderProdutos()"></select>
+      <input class="search" id="searchProdutos" placeholder="Buscar produto..." oninput="renderProdutos()">
     </div>
-    <div class="chart-row">
-      <div class="chart-card"><div class="chart-title">Faturamento por Grupo</div><div class="bar-chart" id="chart-grupos-fat"></div></div>
-      <div class="chart-card"><div class="chart-title">Quantidade por Grupo</div><div class="bar-chart" id="chart-grupos-qtd"></div></div>
-    </div>
-    <div class="tbl-card">
-      <div class="tbl-wrap"><table><thead><tr>
-        <th onclick="sortTable('grupos','nome')" data-col="nome" style="text-align:left">Grupo<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('grupos','qtd')" data-col="qtd">Qtd<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('grupos','faturado')" data-col="faturado">Faturado<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('grupos','custo')" data-col="custo">Custo<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('grupos','margem_val')" data-col="margem_val">Margem R$<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('grupos','margem_pct')" data-col="margem_pct">Margem %<span class="sort-icon">↕</span></th>
-      </tr></thead><tbody id="body-grupos"></tbody></table></div>
-      <div class="tbl-footer" id="footer-grupos"></div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-h"><span class="panel-title">Grupos por faturamento</span></div>
+        <div class="rows" id="produtosGruposRows"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><span class="panel-title">Top produtos</span><span class="panel-sub" id="produtosCount"></span></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr>
+            <th data-col="nome" onclick="sortTable('produtos','nome')">Produto<span class="sort-icon">↕</span></th>
+            <th data-col="qtd" onclick="sortTable('produtos','qtd')">Qtd<span class="sort-icon">↕</span></th>
+            <th data-col="faturado" onclick="sortTable('produtos','faturado')">Faturado<span class="sort-icon">↕</span></th>
+          </tr></thead>
+          <tbody id="body-produtos"></tbody>
+        </table></div>
+      </div>
     </div>
   </div>
 
-  <!-- HORÁRIO -->
-  <div class="section" id="sec-horario">
+  <!-- ═══ EQUIPE ═══ -->
+  <div class="page" id="page-equipe">
     <div class="controls">
-      <select class="period-select" id="sel-horario" onchange="renderHorario()"><option value="">Todos os meses</option></select>
-      <span class="count-badge" id="badge-horario"></span>
+      <select class="select" id="sel-atendente" onchange="renderEquipe()"></select>
     </div>
-    <div class="chart-card" style="margin-bottom:16px">
-      <div class="chart-title">Faturamento por Hora do Dia</div>
-      <div class="bar-chart" id="chart-horario"></div>
+
+    <div id="equipeNotas" class="notas"></div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Atendentes</span><span class="panel-sub" id="equipeCount"></span></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th data-col="nome" onclick="sortTable('atendente','nome')">Nome<span class="sort-icon">↕</span></th>
+          <th data-col="r_total" onclick="sortTable('atendente','r_total')">Total<span class="sort-icon">↕</span></th>
+          <th data-col="comandas" onclick="sortTable('atendente','comandas')">Comandas<span class="sort-icon">↕</span></th>
+          <th data-col="ticket_medio" onclick="sortTable('atendente','ticket_medio')">Ticket<span class="sort-icon">↕</span></th>
+        </tr></thead>
+        <tbody id="body-atendente"></tbody>
+      </table></div>
     </div>
   </div>
 
-  <!-- ATENDENTE -->
-  <div class="section" id="sec-atendente">
+  <!-- ═══ COMPARAR ═══ -->
+  <div class="page" id="page-comparar">
     <div class="controls">
-      <select class="period-select" id="sel-atendente" onchange="renderAtendente()"><option value="">Todos os meses</option></select>
-      <span class="count-badge" id="badge-atendente"></span>
+      <select class="select" id="cmpPeriodoA"></select>
+      <span style="color:var(--text-muted)">vs.</span>
+      <select class="select" id="cmpPeriodoB"></select>
+      <button class="icon-btn" onclick="renderComparar()">Comparar</button>
     </div>
-    <div id="notas-atendente" style="margin-bottom:12px"></div>
-    <div class="tbl-card">
-      <div class="tbl-wrap"><table><thead><tr>
-        <th onclick="sortTable('atendente','nome')" data-col="nome" style="text-align:left">Atendente<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('atendente','r_total')" data-col="r_total">Total R$<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('atendente','comandas')" data-col="comandas">Comandas<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('atendente','produtos')" data-col="produtos">Produtos<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('atendente','ticket_medio')" data-col="ticket_medio">Ticket Médio<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('atendente','ticket_pessoa')" data-col="ticket_pessoa">Ticket/Pessoa<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('atendente','r_taxa')" data-col="r_taxa">Taxa Serviço<span class="sort-icon">↕</span></th>
-      </tr></thead><tbody id="body-atendente"></tbody></table></div>
-      <div class="tbl-footer" id="footer-atendente"></div>
+    <div class="grid4" id="compararResultado"></div>
+  </div>
+
+  <!-- ═══ IMPORTAÇÕES ═══ -->
+  <div class="page" id="page-importacoes">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Últimas importações</span><span class="panel-sub">Só leitura — o import roda por fora, via import-pipeline</span></div>
+      <div id="importLogRows"></div>
     </div>
   </div>
 
-  <!-- PRODUTOS (simples) -->
-  <div class="section" id="sec-produtos">
-    <div class="controls">
-      <select class="period-select" id="sel-produtos" onchange="renderProdutos()"><option value="">Todos os meses</option></select>
-      <div class="search-wrap">
-        <span class="search-icon">⌕</span>
-        <input type="text" id="search-produtos" placeholder="Buscar produto..." oninput="renderProdutos()">
-      </div>
-      <span class="count-badge" id="badge-produtos"></span>
-    </div>
-    <div class="tbl-card">
-      <div class="tbl-wrap"><table><thead><tr>
-        <th style="width:40px;text-align:center">#</th>
-        <th onclick="sortTable('produtos','nome')" data-col="nome" style="text-align:left">Produto<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('produtos','qtd')" data-col="qtd">Qtd<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('produtos','faturado')" data-col="faturado">Faturado<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('produtos','margem')" data-col="margem">Margem<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('produtos','fat_pct')" data-col="fat_pct" style="width:120px">% Fat<span class="sort-icon">↕</span></th>
-      </tr></thead><tbody id="body-produtos"></tbody></table></div>
-      <div class="tbl-footer" id="footer-produtos"></div>
-    </div>
-  </div>
-
-  <!-- RANKING DETALHADO -->
-  <div class="section" id="sec-ranking">
-    <div class="kpi-row" id="kpi-ranking"><div class="kpi"><div class="kpi-l">Carregando</div><div class="kpi-v">...</div></div></div>
-    <div class="controls">
-      <select class="period-select" id="sel-ranking" onchange="renderRanking()"><option value="">Todos os meses</option></select>
-      <select class="period-select" id="sel-ranking-grupo" onchange="renderRanking()"><option value="">Todos os grupos</option></select>
-      <select class="period-select" id="sel-ranking-tam" onchange="renderRanking()"><option value="">Todos os tamanhos</option></select>
-      <div class="search-wrap">
-        <span class="search-icon">⌕</span>
-        <input type="text" id="search-ranking" placeholder="Buscar produto..." oninput="renderRanking()">
-      </div>
-      <span class="count-badge" id="badge-ranking"></span>
-    </div>
-    <div class="tbl-card">
-      <div class="tbl-wrap"><table><thead><tr>
-        <th style="width:44px;text-align:center" onclick="sortTable('ranking','rank')" data-col="rank">#<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','nome')" data-col="nome" style="text-align:left">Produto<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','grupo')" data-col="grupo">Grupo<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','tam')" data-col="tam">Tamanho<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','qtd')" data-col="qtd">Qtd Total<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','faturado')" data-col="faturado">Faturamento<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','ticket_medio')" data-col="ticket_medio">Tk Médio<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','margem')" data-col="margem">Margem<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','custo_pct')" data-col="custo_pct">% Custo<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','fat_pct')" data-col="fat_pct" style="width:130px">% Fat<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('ranking','trend')" data-col="trend">Tendência<span class="sort-icon">↕</span></th>
-      </tr></thead><tbody id="body-ranking"></tbody></table></div>
-      <div class="tbl-footer" id="footer-ranking"></div>
-    </div>
-  </div>
-
-
-  <!-- CEO -->
-  <div class="section active" id="sec-ceo">
-    <div class="ceo-kpi-grid" id="ceo-kpis">
-      <div class="ceo-kpi"><div class="ceo-kpi-l">Carregando</div><div class="ceo-kpi-v">...</div></div>
-    </div>
-
-        <div id="notas-ceo-geral"></div>
-    <div class="ceo-section-title">Evolução</div>
-    <div class="subtabs">
-      <button class="subtab active" onclick="showSubTab('evo-mensal', this)">📅 Mensal</button>
-      <button class="subtab" onclick="showSubTab('evo-semanal', this)">📆 Semanal</button>
-      <button class="subtab" onclick="showSubTab('evo-diasemana', this)">📊 Dia da Semana</button>
-      <button class="subtab" onclick="showSubTab('evo-diaria', this)">📈 Diário</button>
-    </div>
-
-    <!-- SUB: MENSAL -->
-    <div class="subsection active" id="sub-evo-mensal">
-      
-    </div>
-
-    <!-- SUB: SEMANAL -->
-    <div class="subsection" id="sub-evo-semanal">
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr">
-          <div class="ceo-chart-label">Média por semana do mês (1ª, 2ª, 3ª, 4ª)</div>
-          <select class="period-select" id="sel-semanal" onchange="renderSemanal()">
-            <option value="">Todos os meses</option>
-          </select>
-        </div>
-        <div class="ceo-ch" style="height:280px"><canvas id="semanalChart"></canvas></div>
-      </div>
-      <div class="ceo-chart-card" style="margin-top:0">
-        <div class="ceo-chart-hdr"><div class="ceo-chart-label">Detalhe por semana</div></div>
-        <div class="ceo-table-wrap">
-          <table id="semanal-tbl"></table>
-        </div>
-      </div>
-    </div>
-
-    <!-- DIA DA SEMANA -->
-
-    <!-- SUB: DIA DA SEMANA -->
-    <div class="subsection" id="sub-evo-diasemana">
-      <div id="notas-diasemana" style="margin-bottom:8px"></div>
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr">
-          <div class="ceo-chart-label">Média de faturamento por dia da semana</div>
-          <select class="period-select" id="sel-diasemana" onchange="renderDiaSemana()">
-            <option value="">Todos os meses</option>
-          </select>
-        </div>
-        <div class="ceo-ch" style="height:280px"><canvas id="diasemanaChart"></canvas></div>
-      </div>
-      <div class="ceo-grid2" style="margin-top:0">
-        <div class="ceo-chart-card">
-          <div class="ceo-chart-hdr"><div class="ceo-chart-label">Faturamento médio por turno × dia</div></div>
-          <div id="diasemana-detalhe"></div>
-        </div>
-        <div class="ceo-chart-card">
-          <div class="ceo-chart-hdr"><div class="ceo-chart-label">Ranking de dias</div></div>
-          <div id="diasemana-ranking"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="ceo-section-title">Análise de Evolução</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-      <button class="ceo-mtab active" onclick="ceoswitchMetric('fat',this)">Faturamento</button>
-      <button class="ceo-mtab" onclick="ceoswitchMetric('cmd',this)">Comandas</button>
-      <button class="ceo-mtab" onclick="ceoswitchMetric('tk',this)">Ticket médio</button>
-      <button class="ceo-mtab" onclick="ceoswitchMetric('pess',this)">Pessoas</button>
-    </div>
-    <div class="ceo-chart-card">
-      <div class="ceo-chart-hdr">
-        <div class="ceo-chart-label" id="ceo-mainTitle">Faturamento mensal — salão (R$)</div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div class="ceo-leg">
-            <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:#1B4332"></span>Normal</div>
-            <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:#C9A84C"></span>Pico</div>
-            <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:#52B78899"></span>Parcial</div>
-            <div class="ceo-leg-i" id="ceo-yoyLegend" style="display:none"><span class="ceo-leg-sq" style="background:#C0392B"></span>% vs ano ant.</div>
-          </div>
-          <button class="yoy-btn" id="ceo-yoyBtn" onclick="ceoToggleYoY()">↗ Variação anual</button>
-        </div>
-      </div>
-      <div class="ceo-ch" style="height:280px"><canvas id="ceoMainChart"></canvas></div>
-      <div id="ceo-yoyCards" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--b1);gap:10px;flex-wrap:wrap"></div>
-    </div>
-    <div class="ceo-grid2">
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr"><div class="ceo-chart-label">Evolução do ticket médio</div></div>
-        <div class="ceo-ch" style="height:200px"><canvas id="ceoTkChart"></canvas></div>
-      </div>
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr">
-          <div class="ceo-chart-label">Comandas e Pessoas</div>
-          <div class="ceo-leg">
-            <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:#1B4332cc"></span>Cmd</div>
-            <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:#52B78899"></span>Pess</div>
-          </div>
-        </div>
-        <div class="ceo-ch" style="height:200px"><canvas id="ceoCpChart"></canvas></div>
-      </div>
-    </div>
-
-    <!-- SUB: DIÁRIO -->
-    <div class="subsection" id="sub-evo-diaria">
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr">
-          <div class="ceo-chart-label" id="diaria-title">Faturamento diário</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <select class="period-select" id="sel-diaria" onchange="renderDiaria()">
-              <option value="">Todos os meses</option>
-            </select>
-            <button class="yoy-btn" id="diaria-yoyBtn" onclick="toggleDiariaYoY()">↗ Comparar com ano anterior</button>
-            <div id="diaria-yoyLegend" style="display:none" class="ceo-leg">
-              <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:var(--dg)"></span>Período atual</div>
-              <div class="ceo-leg-i"><span class="ceo-leg-sq" style="background:#C9A84C"></span>Ano anterior</div>
-            </div>
-          </div>
-        </div>
-        <div class="ceo-ch" style="height:300px"><canvas id="diariaChart"></canvas></div>
-        <div id="diaria-yoyCards" class="yoy-cards-row" style="display:none"></div>
-      </div>
-    </div>
-
-    <!-- SEMANAL -->
-    <div class="ceo-section-title">Distribuição por turno</div>
-    <div class="turno-grid" id="ceo-turno-grid">
-      <div class="turno-card almoco"><div class="turno-name">Carregando...</div></div>
-    </div>
-    <div class="ceo-section-title">Tabela completa</div>
-    <div class="ceo-chart-card">
-      <div class="ceo-table-wrap"><table id="ceo-tbl"></table></div>
-      <p style="font-size:11px;color:var(--ink3);margin-top:12px;padding-top:10px;border-top:1px solid var(--b1)">
-        ⚠ Nov/25: possível erro de lançamento de pessoas no iComanda &nbsp;·&nbsp; Meses marcados como parcial podem estar incompletos &nbsp;·&nbsp; Fonte: iComanda
-      </p>
-    </div>
-    <div style="margin:28px 0 20px;display:flex;align-items:center;gap:16px">
-      <div style="height:2px;flex:1;background:var(--b2)"></div>
-      <div style="font-family:'Playfair Display',serif;font-size:13px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase">Cardápio &amp; Produtos</div>
-      <div style="height:2px;flex:1;background:var(--b2)"></div>
-    </div>
-    <div class="ceo-grid2">
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr"><div class="ceo-chart-label">Top 10 pratos por faturamento</div></div>
-        <div id="ceo-rankingBars"></div>
-      </div>
-      <div class="ceo-chart-card">
-        <div class="ceo-chart-hdr"><div class="ceo-chart-label">Participação por grupo</div></div>
-        <div style="position:relative;height:220px;margin-bottom:16px"><canvas id="ceoDonutChart"></canvas>
-          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-            <div style="font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Total</div>
-            <div id="ceo-donut-total" style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--ink)">—</div>
-          </div>
-        </div>
-        <div id="ceo-gruposLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px"></div>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- COMPARAR -->
-  <div class="section" id="sec-comparar">
-
-    <!-- Controles -->
-    <div class="ceo-chart-card" style="margin-bottom:16px">
-      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:24px;align-items:end">
-
-        <!-- Período A -->
-        <div>
-          <div style="font-size:11px;font-weight:600;color:var(--dg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📅 Período A</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <div>
-              <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">De</div>
-              <input type="date" id="cmp-a-de" class="cmp-date-input" onchange="cmpValidate()">
-            </div>
-            <div style="padding-top:18px;color:var(--ink3)">→</div>
-            <div>
-              <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">Até</div>
-              <input type="date" id="cmp-a-ate" class="cmp-date-input" onchange="cmpValidate()">
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">Turno</div>
-              <select id="cmp-a-turno" class="period-select" onchange="cmpValidate()">
-                <option value="">Todos</option>
-                <option value="almoco">Almoço</option>
-                <option value="jantar">Jantar</option>
-                <option value="cafe">Café</option>
-              </select>
-            </div>
-          </div>
-          <div id="cmp-a-info" style="font-size:11px;color:var(--ink3);margin-top:6px"></div>
-        </div>
-
-        <!-- Centro -->
-        <div style="text-align:center;padding-bottom:4px">
-          <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--b2)">vs</div>
-        </div>
-
-        <!-- Período B -->
-        <div>
-          <div style="font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📅 Período B</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <div>
-              <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">De</div>
-              <input type="date" id="cmp-b-de" class="cmp-date-input" onchange="cmpValidate()">
-            </div>
-            <div style="padding-top:18px;color:var(--ink3)">→</div>
-            <div>
-              <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">Até</div>
-              <input type="date" id="cmp-b-ate" class="cmp-date-input" onchange="cmpValidate()">
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">Turno</div>
-              <select id="cmp-b-turno" class="period-select" onchange="cmpValidate()">
-                <option value="">Todos</option>
-                <option value="almoco">Almoço</option>
-                <option value="jantar">Jantar</option>
-                <option value="cafe">Café</option>
-              </select>
-            </div>
-          </div>
-          <div id="cmp-b-info" style="font-size:11px;color:var(--ink3);margin-top:6px"></div>
-        </div>
-
-      </div>
-
-      <!-- Aviso + botão -->
-      <div id="cmp-aviso" style="display:none;margin-top:14px;padding:10px 16px;background:#FEF3C7;border-radius:8px;font-size:12px;color:#92400E;font-weight:500"></div>
-      <div style="margin-top:14px;text-align:center">
-        <button id="cmp-btn" onclick="renderComparar()" style="font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:10px 32px;border-radius:24px;border:none;background:var(--dg);color:#fff;cursor:pointer;transition:all .15s;opacity:.4;pointer-events:none">
-          Comparar
-        </button>
-      </div>
-    </div>
-
-    <!-- Resultado -->
-    <div id="cmp-result" style="display:none">
-
-      <!-- Delta KPIs centrais -->
-      <div id="cmp-delta-row" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px"></div>
-
-      <!-- Colunas lado a lado -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-        <!-- Coluna A -->
-        <div>
-          <div id="cmp-a-header" style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--dg);margin-bottom:12px;padding-bottom:8px;border-bottom:3px solid var(--dg)"></div>
-          <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px" id="cmp-a-kpis"></div>
-          <div class="ceo-chart-card" style="margin-bottom:12px">
-            <div class="ceo-chart-label" style="margin-bottom:10px">Por Turno</div>
-            <div id="cmp-a-turnos"></div>
-          </div>
-          <div class="ceo-chart-card" style="margin-bottom:12px">
-            <div class="ceo-chart-label" style="margin-bottom:10px">Por Atendente</div>
-            <div id="cmp-a-atendentes"></div>
-          </div>
-          <div class="tbl-card">
-            <div class="tbl-wrap">
-              <table id="cmp-a-tbl" style="font-size:12px"></table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Coluna B -->
-        <div>
-          <div id="cmp-b-header" style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--goldd);margin-bottom:12px;padding-bottom:8px;border-bottom:3px solid var(--gold)"></div>
-          <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px" id="cmp-b-kpis"></div>
-          <div class="ceo-chart-card" style="margin-bottom:12px">
-            <div class="ceo-chart-label" style="margin-bottom:10px">Por Turno</div>
-            <div id="cmp-b-turnos"></div>
-          </div>
-          <div class="ceo-chart-card" style="margin-bottom:12px">
-            <div class="ceo-chart-label" style="margin-bottom:10px">Por Atendente</div>
-            <div id="cmp-b-atendentes"></div>
-          </div>
-          <div class="tbl-card">
-            <div class="tbl-wrap">
-              <table id="cmp-b-tbl" style="font-size:12px"></table>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- COMANDAS -->
-  <div class="section" id="sec-comandas">
-    <div class="controls">
-      <select class="period-select" id="sel-comandas" onchange="renderComandas()"><option value="">Todos os meses</option></select>
-      <span class="count-badge" id="badge-comandas"></span>
-    </div>
-    <div class="chart-row">
-      <div class="chart-card"><div class="chart-title">Faturamento por Canal</div><div class="bar-chart" id="chart-comandas-fat"></div></div>
-      <div class="chart-card"><div class="chart-title">Qtd Pedidos por Canal</div><div class="bar-chart" id="chart-comandas-qtd"></div></div>
-    </div>
-    <div class="tbl-card">
-      <div class="tbl-wrap"><table><thead><tr>
-        <th onclick="sortTable('comandas','nome')" data-col="nome" style="text-align:left">Canal<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('comandas','qtd_pedidos')" data-col="qtd_pedidos">Qtd Pedidos<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('comandas','total')" data-col="total">Total R$<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('comandas','ticket_medio')" data-col="ticket_medio">Ticket Médio<span class="sort-icon">↕</span></th>
-        <th onclick="sortTable('comandas','participacao')" data-col="participacao">Participação<span class="sort-icon">↕</span></th>
-      </tr></thead><tbody id="body-comandas"></tbody></table></div>
-      <div class="tbl-footer" id="footer-comandas"></div>
-    </div>
-  </div>
 </div>
 
 <div class="footer"><b>Calçada Alta</b> — Dashboard Operacional · Dados: iComanda</div>
