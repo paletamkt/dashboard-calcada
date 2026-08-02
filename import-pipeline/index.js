@@ -305,6 +305,33 @@ async function upsertTable(tableName, data, conflictColumn) {
   console.log(`✅ ${tableName}: ${data.length} registros`);
 }
 
+// ca_comandas não tem constraint UNIQUE (nome,periodo) — em vez de upsert,
+// substitui as linhas do(s) período(s) presentes no arquivo por completo
+// (apaga e reinsere). Isso deixa seguro rodar toda semana: cada import vira
+// o "retrato mais atual" do mês em andamento, sem duplicar nem exigir a
+// constraint que ainda não existe. Só mexe nos períodos do próprio arquivo —
+// não toca no histórico de outros meses.
+async function replaceComandasForPeriods(data) {
+  if (!data || data.length === 0) return;
+
+  const periodos = [...new Set(data.map(d => d.periodo).filter(Boolean))];
+  if (periodos.length > 0) {
+    const { error: delError } = await supabase.from('ca_comandas').delete().in('periodo', periodos);
+    if (delError) {
+      console.error('❌ Erro ao limpar ca_comandas antes de reinserir:', delError);
+      throw delError;
+    }
+  }
+
+  const { error } = await supabase.from('ca_comandas').insert(data).select();
+  if (error) {
+    console.error('❌ Erro ao inserir em ca_comandas:', error);
+    throw error;
+  }
+
+  console.log(`✅ ca_comandas: ${data.length} registros (período ${periodos.join(', ')} substituído)`);
+}
+
 // ===== MAIN =====
 
 function preview(label, rows, n = 3) {
@@ -350,8 +377,13 @@ async function importFromExcel(filePath, { dryRun, mode }) {
   // identificador único do lançamento) — seguro pra importar toda semana.
   await upsertTable('ca_turno', turnoData, 'caixa');
 
+  // ca_comandas é pequena (poucas linhas por mês) e usada pro card de canais
+  // (Salão/Delivery) do topo do dashboard — atualiza toda vez, mesmo em
+  // --turno-only, pra esse card não ficar desatualizado ao longo do mês.
+  await replaceComandasForPeriods(comandasData);
+
   if (mode === 'turno-only') {
-    console.log(`\n✅ Import completo (só ca_turno — as tabelas por período não foram tocadas)!`);
+    console.log(`\n✅ Import completo (ca_turno + ca_comandas — as outras tabelas por período não foram tocadas)!`);
     return;
   }
 
@@ -363,9 +395,6 @@ async function importFromExcel(filePath, { dryRun, mode }) {
   await upsertTable('ca_horario', horarioData, 'hora,periodo');
   await upsertTable('ca_atendente', atendenteData, 'nome,periodo');
   await upsertTable('ca_produtos', produtosData, 'nome,periodo');
-  if (comandasData.length > 0) {
-    await upsertTable('ca_comandas', comandasData, 'nome,periodo');
-  }
 
   console.log(`\n✅ Import completo!`);
 }

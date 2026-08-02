@@ -1338,15 +1338,30 @@ async function loadAll() {
   selectCurrentMonth('ranking', curLabel);
   selectCurrentMonth('comandas', curLabel);
 
-  // Faturamento do topo = mês corrente até hoje (não o total histórico).
-  const turnoMes = DATA.turno.filter(d => d.data && d.data.slice(0,7) === curYM);
-  const totFatMes = turnoMes.reduce((s,d)=>s+(Number(d.faturado)||0),0);
-  const cmdSalao = turnoMes.filter(d=>d.tipo!=='delivery').reduce((s,d)=>s+(Number(d.comandas)||0),0);
-  const cmdDelivery = turnoMes.filter(d=>d.tipo==='delivery').reduce((s,d)=>s+(Number(d.comandas)||0),0);
+  // Faturamento do topo = mês corrente até hoje, vindo de ca_comandas (não
+  // ca_turno — esse só mede o Salão, e mede diferente do relatório "Tipos de
+  // Comandas"). "Salão" é a linha "Mesa"; "Delivery" é a soma de tudo o mais,
+  // com os nomes reais dos canais (iFood, Balcão, etc.) mostrados dinamicamente
+  // — um canal novo aparece sozinho, sem precisar mexer no código.
+  const comandasMes = DATA.comandas.filter(d => d.periodo === curLabel);
   const hoje = new Date();
   document.getElementById('hdrPeriodo').textContent=`${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()} · Fonte: iComanda`;
-  document.getElementById('hdrBadge').innerHTML=`Faturamento (mês): <span class='hide-val'>${fmtBRL(totFatMes)}</span>`;
-  document.getElementById('hdrComandasBadge').innerHTML=`Salão: ${fmtNum(cmdSalao)} · Delivery: ${fmtNum(cmdDelivery)}`;
+
+  if (comandasMes.length === 0) {
+    document.getElementById('hdrBadge').innerHTML=`Faturamento (mês): sem dados ainda`;
+    document.getElementById('hdrComandasBadge').innerHTML=`Aguardando import do mês`;
+  } else {
+    const totFatMes = comandasMes.reduce((s,d)=>s+(Number(d.total)||0),0);
+    const salaoRows = comandasMes.filter(d => (d.nome||'').trim().toLowerCase()==='mesa');
+    const deliveryRows = comandasMes.filter(d => (d.nome||'').trim().toLowerCase()!=='mesa');
+    const salaoTotal = salaoRows.reduce((s,d)=>s+(Number(d.total)||0),0);
+    const deliveryTotal = deliveryRows.reduce((s,d)=>s+(Number(d.total)||0),0);
+    const canais = deliveryRows.map(d=>d.nome).join(', ');
+    document.getElementById('hdrBadge').innerHTML=`Faturamento (mês): <span class='hide-val'>${fmtBRL(totFatMes)}</span>`;
+    document.getElementById('hdrComandasBadge').innerHTML = deliveryRows.length
+      ? `Salão: ${fmtBRLh(salaoTotal)} · Delivery: ${fmtBRLh(deliveryTotal)} (${canais})`
+      : `Salão: ${fmtBRLh(salaoTotal)} · Delivery: sem dados ainda`;
+  }
 
   renderTurno(); renderGrupos(); renderHorario();
   renderAtendente(); renderProdutos(); renderRanking(); renderCeo(); renderComandas();
