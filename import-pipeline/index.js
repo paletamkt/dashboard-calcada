@@ -228,7 +228,7 @@ function processAtendente(workbook) {
   const period = extractPeriodFromHeader(sheet);
 
   return data
-    .filter(row => row['Nome'])
+    .filter(row => row['Nome'] && !/^totai?s$/i.test(String(row['Nome']).trim()))
     .map(row => ({
       nome: row['Nome'],
       r_comanda: normalizeCurrency(row['R$ Comanda']),
@@ -334,6 +334,83 @@ async function replaceForPeriods(tableName, data) {
   console.log(`✅ ${tableName}: ${data.length} registros (período ${periodos.join(', ')} substituído)`);
 }
 
+// ===== NOTAS AUTOMÁTICAS =====
+// Só roda em --monthly (mês fechado, dado confiável) — em --turno-only os
+// números ainda são parciais e gerariam insight enganoso ("queda de 80%"
+// só porque só metade do mês foi importada).
+
+function fmtBRL(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function previousLabelOf(label) {
+  const [mes, ano] = label.split('/');
+  let mi = MESES_ABREV.indexOf(mes) - 1;
+  let anoNum = 2000 + parseInt(ano, 10);
+  if (mi < 0) { mi = 11; anoNum -= 1; }
+  return `${MESES_ABREV[mi]}/${String(anoNum).slice(2)}`;
+}
+
+async function generateNotas(periodoAtual) {
+  const prevPeriodo = previousLabelOf(periodoAtual);
+  const notas = [];
+
+  // 1. Crescimento/queda de faturamento vs. mês anterior (ca_comandas = fonte oficial)
+  const { data: comandasAtual } = await supabase.from('ca_comandas').select('total').eq('periodo', periodoAtual);
+  const { data: comandasPrev } = await supabase.from('ca_comandas').select('total').eq('periodo', prevPeriodo);
+  const totalAtual = (comandasAtual || []).reduce((s, d) => s + (Number(d.total) || 0), 0);
+  const totalPrev = (comandasPrev || []).reduce((s, d) => s + (Number(d.total) || 0), 0);
+  if (totalAtual > 0 && totalPrev > 0) {
+    const delta = (totalAtual - totalPrev) / totalPrev * 100;
+    notas.push({
+      contexto: 'ceo', periodo: periodoAtual,
+      tag: delta >= 0 ? 'destaque' : 'alerta',
+      texto: `${delta >= 0 ? 'Crescimento' : 'Queda'} de ${Math.abs(delta).toFixed(1)}% em relação a ${prevPeriodo}. Faturamento ${fmtBRL(totalAtual)}.`,
+      origem: 'auto', ativo: true
+    });
+  }
+
+  // 2. Atendente destaque do mês
+  const { data: atendentesMes } = await supabase.from('ca_atendente').select('nome,r_total,comandas').eq('periodo', periodoAtual);
+  if (atendentesMes && atendentesMes.length > 0) {
+    const top = [...atendentesMes].sort((a, b) => (Number(b.r_total) || 0) - (Number(a.r_total) || 0))[0];
+    notas.push({
+      contexto: 'atendente', periodo: periodoAtual, tag: 'destaque',
+      texto: `${top.nome} lidera em faturamento no mês — ${fmtBRL(top.r_total)} em ${top.comandas} comandas.`,
+      origem: 'auto', ativo: true
+    });
+  }
+
+  // 3. Produto destaque do mês
+  const { data: produtosMes } = await supabase.from('ca_produtos').select('nome,faturado,qtd').eq('periodo', periodoAtual);
+  if (produtosMes && produtosMes.length > 0) {
+    const top = [...produtosMes].sort((a, b) => (Number(b.faturado) || 0) - (Number(a.faturado) || 0))[0];
+    notas.push({
+      contexto: 'produtos', periodo: periodoAtual, tag: 'destaque',
+      texto: `${top.nome} foi o produto mais vendido do mês — ${fmtBRL(top.faturado)} faturados em ${top.qtd} unidades.`,
+      origem: 'auto', ativo: true
+    });
+  }
+
+  if (notas.length === 0) {
+    console.log('ℹ️  Notas automáticas: nada gerado (sem mês anterior ou dados insuficientes pra comparar).');
+    return;
+  }
+
+  // Remove só as notas AUTOMÁTICAS desse período antes de regravar — nunca
+  // toca em notas 'manual' escritas por vocês.
+  const { error: delError } = await supabase.from('ca_notas').delete().match({ periodo: periodoAtual, origem: 'auto' });
+  if (delError) {
+    console.error('⚠️  Não consegui limpar notas automáticas antigas (import em si já terminou):', delError.message);
+    return;
+  }
+  const { error } = await supabase.from('ca_notas').insert(notas);
+  if (error) {
+    console.error('⚠️  Não consegui gravar notas automáticas (import em si já terminou):', error.message);
+    return;
+  }
+  console.log(`✅ ca_notas: ${notas.length} notas automáticas geradas pra ${periodoAtual}`);
+}
+
 // ===== MAIN =====
 
 function preview(label, rows, n = 3) {
@@ -421,6 +498,12 @@ async function importFromExcel(filePath, { dryRun, mode }) {
     await replaceForPeriods('ca_horario', horarioData);
     await replaceForPeriods('ca_atendente', atendenteData);
     await replaceForPeriods('ca_produtos', produtosData);
+
+    if (periodos.length === 1) {
+      await generateNotas(periodos[0]);
+    } else if (periodos.length > 1) {
+      console.log(`ℹ️  Notas automáticas: pulei porque o arquivo cobre mais de um período (${periodos.join(', ')}).`);
+    }
 
     console.log(`\n✅ Import completo!`);
     await logImport({ filePath, mode, periodos, contagens, sucesso: true });
