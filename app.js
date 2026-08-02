@@ -21,6 +21,15 @@ function previousMonthLabel() {
   const d = new Date(); d.setMonth(d.getMonth()-1);
   return `${MESES_ABREV[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
 }
+// "Jun/26" -> "Mai/26" — mês anterior a um período específico (não ao mês atual real),
+// pra comparação funcionar mesmo quando o usuário seleciona um mês passado.
+function previousLabelOf(label) {
+  const [mes, ano] = label.split('/');
+  let mi = MESES_ABREV.indexOf(mes) - 1;
+  let anoNum = 2000 + parseInt(ano, 10);
+  if (mi < 0) { mi = 11; anoNum -= 1; }
+  return `${MESES_ABREV[mi]}/${String(anoNum).slice(2)}`;
+}
 function fmtBRL(v) { return v != null ? 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'; }
 function fmtBRLh(v) { return `<span class="hide-val">${fmtBRL(v)}</span>`; }
 function fmtNum(v) { return v != null ? Number(v).toLocaleString('pt-BR') : '—'; }
@@ -72,13 +81,16 @@ function sortTable(tab, col) {
 }
 
 // ===== FILTROS DE PERÍODO (selects) =====
-function populatePeriods(selId, values) {
-  const sel = document.getElementById(selId);
-  const cur = sel.value;
-  const uniq = [...new Set(values.filter(Boolean))].sort((a,b) => {
+function sortLabels(values) {
+  return [...new Set(values.filter(Boolean))].sort((a,b) => {
     const [ma,ya]=a.split('/'); const [mb,yb]=b.split('/');
     return (Number(yb)-Number(ya)) || (MESES_ABREV.indexOf(mb)-MESES_ABREV.indexOf(ma));
   });
+}
+function populatePeriods(selId, values) {
+  const sel = document.getElementById(selId);
+  const cur = sel.value;
+  const uniq = sortLabels(values);
   sel.innerHTML = '<option value="">Todos os meses</option>' + uniq.map(p => `<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
 }
 function selectCurrentMonth(selId, value) {
@@ -99,22 +111,31 @@ function renderNotas(elId, contexto, periodo) {
 }
 
 // ===== VISÃO GERAL =====
+function labelToYM(label) {
+  const [mes, ano] = label.split('/');
+  const mi = MESES_ABREV.indexOf(mes);
+  if (mi < 0) return null;
+  return `${2000+parseInt(ano,10)}-${String(mi+1).padStart(2,'0')}`;
+}
 function renderGeral() {
-  const curLabel = currentMonthLabel();
-  const prevLabel = previousMonthLabel();
+  const curLabel = document.getElementById('sel-geral').value || currentMonthLabel();
+  const prevLabel = previousLabelOf(curLabel);
   const comandasMes = DATA.comandas.filter(d => d.periodo===curLabel);
   const comandasPrev = DATA.comandas.filter(d => d.periodo===prevLabel);
 
   const hoje = new Date();
-  document.getElementById('geralFatLbl').textContent = `FATURAMENTO · ${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()}`;
+  const isMesAtual = curLabel === currentMonthLabel();
+  document.getElementById('geralFatLbl').textContent = isMesAtual
+    ? `FATURAMENTO · ${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()}`
+    : `FATURAMENTO · ${curLabel}`;
 
   if (comandasMes.length === 0) {
     document.getElementById('geralFatNum').textContent = 'Sem dados ainda';
     document.getElementById('geralFatDelta').textContent = '';
-    document.getElementById('geralFatNote').textContent = 'Aguardando import do mês atual';
+    document.getElementById('geralFatNote').textContent = `Aguardando import de ${curLabel}`;
     document.getElementById('geralChannels').innerHTML = '';
     document.getElementById('geralKpis').innerHTML = '';
-    document.getElementById('geralGruposRows').innerHTML = '<div class="no-results">Sem dados do mês atual ainda</div>';
+    document.getElementById('geralGruposRows').innerHTML = '<div class="no-results">Sem dados desse mês ainda</div>';
     renderNotas('geralNotas', 'ceo', curLabel);
     return;
   }
@@ -155,7 +176,7 @@ function renderGeral() {
     </div>`;
 
   // KPIs secundários (a partir de ca_turno do mês — só mede Salão, é o que temos em tempo real)
-  const curYM = currentMonthYM();
+  const curYM = labelToYM(curLabel);
   const turnoMes = DATA.turno.filter(d => d.data && d.data.slice(0,7)===curYM);
   const totComandasMes = comandasMes.reduce((s,d)=>s+(Number(d.qtd_pedidos)||0),0);
   const ticketMedioMes = totComandasMes>0 ? totFat/totComandasMes : 0;
@@ -358,11 +379,21 @@ async function loadAll() {
   })();
   populatePeriods('sel-produtos', DATA.produtos.map(d=>d.periodo));
   populatePeriods('sel-atendente', DATA.atendente.map(d=>d.periodo));
-  const periodosComandas = [...new Set(DATA.comandas.map(d=>d.periodo).filter(Boolean))];
+  const periodosComandas = sortLabels(DATA.comandas.map(d=>d.periodo));
   populatePeriods('cmpPeriodoA', periodosComandas);
   populatePeriods('cmpPeriodoB', periodosComandas);
 
+  // sel-geral (Visão Geral) sempre tem um mês selecionado, nunca "Todos os meses"
+  // — o card principal representa um mês por vez.
+  (function(){
+    const sel = document.getElementById('sel-geral');
+    const cur = sel.value;
+    const opts = periodosComandas.includes(curLabel) ? periodosComandas : [curLabel, ...periodosComandas];
+    sel.innerHTML = opts.map(p => `<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
+  })();
+
   selectCurrentMonth('sel-turno', curYM);
+  selectCurrentMonth('sel-geral', curLabel);
   selectCurrentMonth('sel-produtos', curLabel);
   selectCurrentMonth('sel-atendente', curLabel);
 
