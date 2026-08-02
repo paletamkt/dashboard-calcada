@@ -102,8 +102,9 @@ function selectCurrentMonth(selId, value) {
 function getNotas(contexto, periodo) {
   return DATA.notas.filter(n => n.contexto===contexto && (n.periodo===periodo || n.periodo==='geral') && n.ativo);
 }
-function renderNotas(elId, contexto, periodo) {
-  const notas = getNotas(contexto, periodo);
+function renderNotas(elId, contextoOuLista, periodo) {
+  const contextos = Array.isArray(contextoOuLista) ? contextoOuLista : [contextoOuLista];
+  const notas = contextos.flatMap(c => getNotas(c, periodo));
   const icons = {destaque:'✨', alerta:'⚠️', aviso:'📌', observacao:'💬'};
   document.getElementById(elId).innerHTML = notas.map(n => `
     <div class="nota ${n.tag}"><span>${icons[n.tag]||'💬'}</span><span class="nota-texto">${n.texto}</span></div>
@@ -232,7 +233,7 @@ function renderOperacao() {
     <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(tkMed)}</div><div class="kpi-s">por comanda</div></div>`;
 
   const periodo = p || currentMonthLabel();
-  renderNotas('operacaoNotas', 'diasemana', periodo);
+  renderNotas('operacaoNotas', ['turno', 'diasemana'], periodo);
 
   // Horário — agregado pelas linhas filtradas por mês (ca_horario é por período, não por turno tipo)
   const horarioRows = p ? DATA.horario.filter(d=>d.periodo===p) : DATA.horario;
@@ -265,6 +266,7 @@ function renderOperacao() {
 // ===== PRODUTOS (Grupos + Produtos) =====
 function renderProdutos() {
   const p = document.getElementById('sel-produtos').value;
+  renderNotas('produtosNotas', 'produtos', p || currentMonthLabel());
   const gruposRows = p ? DATA.grupos.filter(d=>d.periodo===p) : DATA.grupos;
   const aggG = {};
   gruposRows.forEach(d => {
@@ -369,17 +371,23 @@ async function loadAll() {
 
   const curLabel = currentMonthLabel();
   const curYM = currentMonthYM();
+  // Padrão de cada filtro: o mês atual, SE já tiver dado importado pra ele —
+  // senão cai no mês mais recente que já tem dado (em vez de mostrar "sem
+  // dados" pro mês calendário atual só porque ainda não foi importado).
+  function defaultLabel(periods) { return periods.includes(curLabel) ? curLabel : (periods[0] || curLabel); }
+  function defaultYM(yms) { return yms.includes(curYM) ? curYM : (yms[0] || curYM); }
 
-  populatePeriods('sel-turno', DATA.turno.map(d=>d.data?.slice(0,7)).filter(Boolean));
-  // sel-turno usa YYYY-MM, os demais usam "Mon/YY" — repopular sel-turno com o formato certo:
+  const turnoYMs = [...new Set(DATA.turno.map(d=>d.data?.slice(0,7)).filter(Boolean))].sort().reverse();
+  const periodosProdutos = sortLabels(DATA.produtos.map(d=>d.periodo));
+  const periodosAtendente = sortLabels(DATA.atendente.map(d=>d.periodo));
+  const periodosComandas = sortLabels(DATA.comandas.map(d=>d.periodo));
+
   (function(){
     const sel = document.getElementById('sel-turno');
-    const uniq = [...new Set(DATA.turno.map(d=>d.data?.slice(0,7)).filter(Boolean))].sort().reverse();
-    sel.innerHTML = '<option value="">Todos os meses</option>' + uniq.map(p=>`<option value="${p}">${p}</option>`).join('');
+    sel.innerHTML = '<option value="">Todos os meses</option>' + turnoYMs.map(p=>`<option value="${p}">${p}</option>`).join('');
   })();
-  populatePeriods('sel-produtos', DATA.produtos.map(d=>d.periodo));
-  populatePeriods('sel-atendente', DATA.atendente.map(d=>d.periodo));
-  const periodosComandas = sortLabels(DATA.comandas.map(d=>d.periodo));
+  populatePeriods('sel-produtos', periodosProdutos);
+  populatePeriods('sel-atendente', periodosAtendente);
   populatePeriods('cmpPeriodoA', periodosComandas);
   populatePeriods('cmpPeriodoB', periodosComandas);
 
@@ -387,15 +395,14 @@ async function loadAll() {
   // — o card principal representa um mês por vez.
   (function(){
     const sel = document.getElementById('sel-geral');
-    const cur = sel.value;
-    const opts = periodosComandas.includes(curLabel) ? periodosComandas : [curLabel, ...periodosComandas];
-    sel.innerHTML = opts.map(p => `<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
+    const opts = periodosComandas.length ? periodosComandas : [curLabel];
+    sel.innerHTML = opts.map(p => `<option value="${p}">${p}</option>`).join('');
   })();
 
-  selectCurrentMonth('sel-turno', curYM);
-  selectCurrentMonth('sel-geral', curLabel);
-  selectCurrentMonth('sel-produtos', curLabel);
-  selectCurrentMonth('sel-atendente', curLabel);
+  selectCurrentMonth('sel-turno', defaultYM(turnoYMs));
+  selectCurrentMonth('sel-geral', defaultLabel(periodosComandas));
+  selectCurrentMonth('sel-produtos', defaultLabel(periodosProdutos));
+  selectCurrentMonth('sel-atendente', defaultLabel(periodosAtendente));
 
   const hoje = new Date();
   document.getElementById('hdrPeriodo').textContent = `${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()} · Fonte: iComanda`;
