@@ -58,6 +58,25 @@ function parsePortugueseDate(dateStr) {
   return d.toISOString().split('T')[0];
 }
 
+function excelSerialToDate(serial) {
+  // Excel epoch: dia 1 = 01/01/1900 (com o bug histórico do "ano bissexto 1900"
+  // que o próprio Excel tem — por isso o -2, não -1). O XLSX às vezes entrega a
+  // coluna "Data" como esse número em vez do texto "DD/MM/AA" (mesma planilha,
+  // linhas diferentes — provavelmente depende de como a célula foi formatada
+  // no iComanda) — sem tratar isso, essas linhas eram silenciosamente
+  // descartadas do import.
+  if (serial == null || isNaN(serial)) return null;
+  const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+  const d = new Date(excelEpoch.getTime() + Number(serial) * 86400000);
+  return d.toISOString().split('T')[0];
+}
+
+function normalizeDate(value) {
+  if (typeof value === 'number') return excelSerialToDate(value);
+  if (typeof value === 'string' && !value.includes('/')) return excelSerialToDate(parseFloat(value));
+  return parsePortugueseDate(value);
+}
+
 function normalizeInteger(value) {
   // "94,00" -> 94, "3.126,00" -> 3126, 79 -> 79 (vírgula é decimal, ponto é milhar — padrão BR)
   if (value == null || value === '') return null;
@@ -163,7 +182,7 @@ function processTurno(workbook) {
       const comandas = normalizeInteger(row['Comandas']);
       return {
         caixa: normalizeInteger(row['Caixa']),
-        data: parsePortugueseDate(row['Data']),
+        data: normalizeDate(row['Data']),
         semana: row['Semana'],
         turno: row['Turno'],
         tipo: row['Tipo'] || null,

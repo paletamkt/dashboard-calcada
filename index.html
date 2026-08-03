@@ -13,10 +13,7 @@
 
 <div id="login-screen" class="login-screen">
   <div class="login-card">
-    <div class="logo-mark">
-      <div class="logo-c"></div>
-      <div class="logo-a"></div>
-    </div>
+    <img class="logo-img" src="assets/logo-calcada.png" alt="Calçada Alta">
     <h1 class="login-title">Calçada Alta</h1>
     <p class="login-subtitle">Dashboard Operacional</p>
 
@@ -55,6 +52,12 @@
     </form>
 
     <a href="#" id="dev-mode-link" class="login-link login-dev">Visão de desenvolvedor (dados fictícios)</a>
+
+    <div class="login-credit">
+      Desenvolvido por
+      <img src="assets/logo-paleta.png" alt="Paleta Food Mkt" class="login-credit-logo">
+      — marketing e tecnologia
+    </div>
   </div>
 </div>
 
@@ -62,7 +65,7 @@
 
 <div class="hdr">
   <div class="hdr-left">
-    <div class="logo-mark"><div class="logo-c"></div><div class="logo-a"></div></div>
+    <img class="hdr-logo-img" src="assets/logo-calcada.png" alt="Calçada Alta">
     <div>
       <div class="hdr-title">Calçada Alta</div>
       <div class="hdr-sub" id="hdrPeriodo">—</div>
@@ -80,6 +83,7 @@
   <button class="nav-btn" data-page="operacao" onclick="showPage('operacao')">Operação</button>
   <button class="nav-btn" data-page="produtos" onclick="showPage('produtos')">Produtos</button>
   <button class="nav-btn" data-page="equipe" onclick="showPage('equipe')">Equipe</button>
+  <button class="nav-btn" data-page="graficos" onclick="showPage('graficos')">Gráficos</button>
   <button class="nav-btn" data-page="comparar" onclick="showPage('comparar')">Comparar</button>
   <button class="nav-btn" data-page="importacoes" onclick="showPage('importacoes')">Importações</button>
 </div>
@@ -202,6 +206,20 @@
     </div>
   </div>
 
+  <!-- ═══ GRÁFICOS ═══ -->
+  <div class="page" id="page-graficos">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Evolução mensal</span><span class="panel-sub" id="graficosPeriodo"></span></div>
+      <div class="chip-group" id="graficosChips">
+        <button class="chip on" data-metric="faturado" onclick="renderGraficos('faturado', this)">Faturamento</button>
+        <button class="chip" data-metric="pessoas" onclick="renderGraficos('pessoas', this)">Pessoas</button>
+        <button class="chip" data-metric="comandas" onclick="renderGraficos('comandas', this)">Comandas</button>
+        <button class="chip" data-metric="ticketMedio" onclick="renderGraficos('ticketMedio', this)">Ticket médio</button>
+      </div>
+      <div id="graficoWrap"></div>
+    </div>
+  </div>
+
   <!-- ═══ COMPARAR ═══ -->
   <div class="page" id="page-comparar">
     <div class="controls">
@@ -223,7 +241,14 @@
 
 </div>
 
-<div class="footer"><b>Calçada Alta</b> — Dashboard Operacional · Dados: iComanda</div>
+<div class="footer">
+  <div><b>Calçada Alta</b> — Dashboard Operacional · Dados: iComanda</div>
+  <div class="footer-credit">
+    Desenvolvido por
+    <img src="assets/logo-paleta.png" alt="Paleta Food Mkt" class="footer-logo">
+    — marketing e tecnologia
+  </div>
+</div>
 
 </div> <!-- /dashboard-root -->
 

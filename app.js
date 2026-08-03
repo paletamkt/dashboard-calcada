@@ -36,6 +36,91 @@ function fmtNum(v) { return v != null ? Number(v).toLocaleString('pt-BR') : '—
 function fmtPct(v) { return v != null ? Number(v).toFixed(1)+'%' : '—'; }
 function fmtDate(v) { return v ? new Date(v).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'; }
 
+// ===== SÉRIE MENSAL (pra sparklines e aba Gráficos) =====
+// Uma linha por mês que existe em ca_comandas (fonte oficial, todos os canais),
+// com pessoas emparelhadas via ca_turno (só Salão, é o que temos por dia).
+function monthlySeries() {
+  const porPeriodo = {};
+  DATA.comandas.forEach(d => {
+    if (!d.periodo) return;
+    if (!porPeriodo[d.periodo]) porPeriodo[d.periodo] = { periodo: d.periodo, faturado: 0, comandas: 0 };
+    porPeriodo[d.periodo].faturado += Number(d.total) || 0;
+    porPeriodo[d.periodo].comandas += Number(d.qtd_pedidos) || 0;
+  });
+  const labels = Object.keys(porPeriodo).sort((a, b) => {
+    const [ma, ya] = a.split('/'); const [mb, yb] = b.split('/');
+    return (Number(ya) - Number(yb)) || (MESES_ABREV.indexOf(ma) - MESES_ABREV.indexOf(mb));
+  });
+  return labels.map(periodo => {
+    const row = porPeriodo[periodo];
+    const ym = labelToYM(periodo);
+    const pessoas = DATA.turno.filter(d => d.data && d.data.slice(0,7) === ym).reduce((s,d) => s + (Number(d.pessoas)||0), 0);
+    return {
+      periodo,
+      faturado: row.faturado,
+      comandas: row.comandas,
+      pessoas,
+      ticketMedio: row.comandas > 0 ? row.faturado / row.comandas : 0
+    };
+  });
+}
+
+function sparkline(values, color) {
+  if (!values || values.length < 2) return '';
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const w = 200, h = 28, pad = 3;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = h - pad - ((v - min) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="spark" width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+// Gráfico de linha maior, com eixo e pontos com hover (title nativo) — usado na aba Gráficos.
+function lineChart(series, key, color, fmt) {
+  const values = series.map(m => m[key]);
+  if (values.length < 2) return '<div class="no-results">Poucos meses com dado pra desenhar um gráfico ainda</div>';
+  const min = Math.min(0, ...values), max = Math.max(...values) || 1;
+  const range = (max - min) || 1;
+  const W = 700, H = 200, padL = 46, padB = 24, padT = 14, padR = 20;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const x = i => padL + (i / (values.length - 1)) * plotW;
+  const y = v => padT + plotH - ((v - min) / range) * plotH;
+  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="${color}"><title>${series[i].periodo}: ${fmt(v)}</title></circle>`).join('');
+  const labels = series.map((m, i) => `<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle" class="axis-lbl">${m.periodo}</text>`).join('');
+  const yTop = `<text x="4" y="${padT+8}" class="axis-lbl">${fmt(max)}</text>`;
+  const yBot = `<text x="4" y="${padT+plotH}" class="axis-lbl">${fmt(min)}</text>`;
+  return `<svg width="100%" height="220" viewBox="0 0 ${W} ${H}">
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="var(--border)"/>
+    <line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="var(--border)"/>
+    ${yTop}${yBot}
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5"/>
+    ${dots}
+    ${labels}
+  </svg>`;
+}
+
+let GRAFICO_METRICA = 'faturado';
+function renderGraficos(metric, btn) {
+  if (metric) GRAFICO_METRICA = metric;
+  if (btn) { document.querySelectorAll('#graficosChips .chip').forEach(c=>c.classList.remove('on')); btn.classList.add('on'); }
+  const serie = monthlySeries();
+  document.getElementById('graficosPeriodo').textContent = serie.length ? `${serie[0].periodo} – ${serie[serie.length-1].periodo}` : '';
+  const specs = {
+    faturado: { color: 'var(--blue)', fmt: fmtBRL },
+    pessoas: { color: 'var(--aqua)', fmt: fmtNum },
+    comandas: { color: 'var(--yellow)', fmt: fmtNum },
+    ticketMedio: { color: 'var(--orange)', fmt: fmtBRL }
+  };
+  const spec = specs[GRAFICO_METRICA];
+  document.getElementById('graficoWrap').innerHTML = lineChart(serie, GRAFICO_METRICA, spec.color, spec.fmt);
+}
+
 // ===== NAVEGAÇÃO =====
 function showPage(page) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page===page));
@@ -206,11 +291,17 @@ function renderGeral() {
     : (turnoMes.reduce((s,d)=>s+(Number(d.comandas)||0),0)>0 ? totPessoas/turnoMes.reduce((s,d)=>s+(Number(d.comandas)||0),0) : null);
   const fonte = resumoAtual ? 'todos os canais' : 'salão (aprox.)';
 
+  const serie = monthlySeries().slice(-7);
+  const sTicket = sparkline(serie.map(m=>m.ticketMedio), 'var(--orange)');
+  const sComandas = sparkline(serie.map(m=>m.comandas), 'var(--yellow)');
+  const sPessoas = sparkline(serie.map(m=>m.pessoas), 'var(--aqua)');
+  const sRazao = sparkline(serie.map(m=>m.comandas>0 ? m.pessoas/m.comandas : 0), 'var(--blue)');
+
   document.getElementById('geralKpis').innerHTML = `
-    <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">${fonte}</div></div>
-    <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">${fonte}</div></div>
-    <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · ${fonte}`:fonte}</div></div>
-    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${pessoasPorComanda!=null?pessoasPorComanda.toFixed(1):'—'}</div><div class="kpi-s">${fonte}</div></div>`;
+    <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">${fonte}</div>${sTicket}</div>
+    <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">${fonte}</div>${sComandas}</div>
+    <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · ${fonte}`:fonte}</div>${sPessoas}</div>
+    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${pessoasPorComanda!=null?pessoasPorComanda.toFixed(1):'—'}</div><div class="kpi-s">${fonte}</div>${sRazao}</div>`;
 
   renderNotas('geralNotas', 'ceo', curLabel);
 
@@ -449,4 +540,5 @@ async function loadAll() {
   renderProdutos();
   renderEquipe();
   renderImportacoes();
+  renderGraficos();
 }
