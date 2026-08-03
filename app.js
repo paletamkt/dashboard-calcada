@@ -295,13 +295,15 @@ function renderGeral() {
   const sTicket = sparkline(serie.map(m=>m.ticketMedio), 'var(--orange)');
   const sComandas = sparkline(serie.map(m=>m.comandas), 'var(--yellow)');
   const sPessoas = sparkline(serie.map(m=>m.pessoas), 'var(--aqua)');
-  const sRazao = sparkline(serie.map(m=>m.comandas>0 ? m.pessoas/m.comandas : 0), 'var(--blue)');
+
+  const produtosMes = DATA.produtos.filter(d => d.periodo===curLabel);
+  const topProduto = produtosMes.length ? [...produtosMes].sort((a,b)=>(Number(b.qtd)||0)-(Number(a.qtd)||0))[0] : null;
 
   document.getElementById('geralKpis').innerHTML = `
     <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">${fonte}</div>${sTicket}</div>
     <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">${fonte}</div>${sComandas}</div>
     <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · ${fonte}`:fonte}</div>${sPessoas}</div>
-    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${pessoasPorComanda!=null?pessoasPorComanda.toFixed(1):'—'}</div><div class="kpi-s">${fonte}</div>${sRazao}</div>`;
+    <div class="kpi"><div class="kpi-l">Produto mais vendido</div><div class="kpi-v kpi-v-txt" title="${topProduto?topProduto.nome:''}">${topProduto?topProduto.nome:'—'}</div><div class="kpi-s">${topProduto?`${fmtNum(topProduto.qtd)} vendidos · fechamento mensal`:'sem fechamento pro mês'}</div></div>`;
 
   renderNotas('geralNotas', 'ceo', curLabel);
 
