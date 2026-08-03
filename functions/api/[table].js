@@ -4,7 +4,7 @@
 
 const ALLOWED_TABLES = new Set([
   'ca_turno', 'ca_grupos', 'ca_horario', 'ca_atendente',
-  'ca_produtos', 'ca_comandas', 'ca_notas', 'ca_import_log'
+  'ca_produtos', 'ca_comandas', 'ca_notas', 'ca_import_log', 'ca_resumo_caixa'
 ]);
 
 const MAX_LIMIT = 10000;

@@ -203,3 +203,22 @@ node index.js caminho/para/relatorio_mensal.xlsx --monthly
 lançamento no iComanda, mas isso não foi confirmado contra a constraint real do
 banco — se rodar o mesmo arquivo duas vezes e aparecerem linhas duplicadas, essa
 é a causa mais provável).
+
+### Resumo de Caixa (Pessoas/Comandas oficiais, todos os canais)
+
+`ca_turno` só mede o Salão (o relatório "Turno"/Control Shop do iComanda não
+inclui Delivery/Balcão). Pra ter o número oficial de Pessoas e Comandas do mês
+inteiro, existe um segundo script que lê o relatório **"Detalhamento de
+Caixa"** do iComanda — precisa ser exportado como PDF (o botão de export
+`.xls` desse relatório específico tem um bug e sempre gera um arquivo vazio;
+use o ícone de impressora e "Salvar como PDF"):
+
+```bash
+node import-resumo-caixa.js caminho/para/resumo_caixa.pdf
+```
+
+Depende do [poppler](https://poppler.freedesktop.org/) (`brew install poppler`
+no Mac) pro comando `pdftotext`. Grava em `ca_resumo_caixa` (upsert por
+`periodo`) — o dashboard usa esses valores como fonte oficial de "Quantidade
+de pessoas" e "Comandas do mês" quando existirem pro período selecionado,
+caindo de volta na aproximação via `ca_turno` quando não existir.

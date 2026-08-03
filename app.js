@@ -1,5 +1,5 @@
 // ===== ESTADO =====
-let DATA = { turno:[], grupos:[], horario:[], atendente:[], produtos:[], comandas:[], notas:[], importLog:[] };
+let DATA = { turno:[], grupos:[], horario:[], atendente:[], produtos:[], comandas:[], notas:[], importLog:[], resumoCaixa:[] };
 let SORT = {
   turno:{col:'data',dir:-1}, produtos:{col:'faturado',dir:-1}, atendente:{col:'r_total',dir:-1}
 };
@@ -186,22 +186,31 @@ function renderGeral() {
       <div class="chan-sub">${deliveryRows.length ? deliveryRows.map(d=>`<span>${d.nome}: ${fmtNum(d.qtd_pedidos)}</span>`).join('') : '<span>Sem canais registrados</span>'}</div>
     </div>`;
 
-  // KPIs secundários (a partir de ca_turno do mês — só mede Salão, é o que temos em tempo real)
+  // KPIs secundários. ca_resumo_caixa é o número OFICIAL (todos os canais,
+  // extraído do relatório "Detalhamento de Caixa" do iComanda) — usa ele
+  // quando existir pro mês; senão cai na aproximação via ca_turno (só Salão).
   const curYM = labelToYM(curLabel);
   const prevYM = labelToYM(prevLabel);
   const turnoMes = DATA.turno.filter(d => d.data && d.data.slice(0,7)===curYM);
   const turnoPrev = DATA.turno.filter(d => d.data && d.data.slice(0,7)===prevYM);
-  const totComandasMes = comandasMes.reduce((s,d)=>s+(Number(d.qtd_pedidos)||0),0);
-  const ticketMedioMes = totComandasMes>0 ? totFat/totComandasMes : 0;
-  const totPessoas = turnoMes.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
-  const totPessoasPrev = turnoPrev.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
-  const totComandasTurno = turnoMes.reduce((s,d)=>s+(Number(d.comandas)||0),0);
+  const resumoAtual = (DATA.resumoCaixa||[]).find(d=>d.periodo===curLabel);
+  const resumoPrev = (DATA.resumoCaixa||[]).find(d=>d.periodo===prevLabel);
+
+  const totComandasMes = resumoAtual ? Number(resumoAtual.comandas) : comandasMes.reduce((s,d)=>s+(Number(d.qtd_pedidos)||0),0);
+  const ticketMedioMes = resumoAtual ? Number(resumoAtual.ticket_medio) : (totComandasMes>0 ? totFat/totComandasMes : 0);
+  const totPessoas = resumoAtual ? Number(resumoAtual.pessoas) : turnoMes.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
+  const totPessoasPrev = resumoPrev ? Number(resumoPrev.pessoas) : turnoPrev.reduce((s,d)=>s+(Number(d.pessoas)||0),0);
   const deltaPessoas = totPessoasPrev>0 ? ((totPessoas-totPessoasPrev)/totPessoasPrev*100) : null;
+  const pessoasPorComanda = resumoAtual
+    ? (Number(resumoAtual.comandas)>0 ? totPessoas/Number(resumoAtual.comandas) : null)
+    : (turnoMes.reduce((s,d)=>s+(Number(d.comandas)||0),0)>0 ? totPessoas/turnoMes.reduce((s,d)=>s+(Number(d.comandas)||0),0) : null);
+  const fonte = resumoAtual ? 'todos os canais' : 'salão (aprox.)';
+
   document.getElementById('geralKpis').innerHTML = `
-    <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">todos os canais</div></div>
-    <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">todos os canais</div></div>
-    <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · salão`:'salão'}</div></div>
-    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${totComandasTurno>0?(totPessoas/totComandasTurno).toFixed(1):'—'}</div><div class="kpi-s">salão</div></div>`;
+    <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">${fonte}</div></div>
+    <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">${fonte}</div></div>
+    <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · ${fonte}`:fonte}</div></div>
+    <div class="kpi"><div class="kpi-l">Pessoas/comanda</div><div class="kpi-v">${pessoasPorComanda!=null?pessoasPorComanda.toFixed(1):'—'}</div><div class="kpi-s">${fonte}</div></div>`;
 
   renderNotas('geralNotas', 'ceo', curLabel);
 
@@ -386,12 +395,16 @@ function renderImportacoes() {
 async function loadAll() {
   document.getElementById('hdrPeriodo').textContent = 'Atualizando...';
 
-  const [turno,grupos,horario,atendente,produtos,comandas,notas,importLog] = await Promise.all([
+  const [turno,grupos,horario,atendente,produtos,comandas,notas,importLog,resumoCaixa] = await Promise.all([
     fetchAll('ca_turno'), fetchAll('ca_grupos'), fetchAll('ca_horario'),
     fetchAll('ca_atendente'), fetchAll('ca_produtos'), fetchAll('ca_comandas'),
-    fetchAll('ca_notas'), fetchAll('ca_import_log')
+    fetchAll('ca_notas'), fetchAll('ca_import_log'), fetchAll('ca_resumo_caixa')
   ]);
-  DATA = { turno, grupos, horario, atendente, produtos, comandas, notas, importLog: Array.isArray(importLog)?importLog:[] };
+  DATA = {
+    turno, grupos, horario, atendente, produtos, comandas, notas,
+    importLog: Array.isArray(importLog)?importLog:[],
+    resumoCaixa: Array.isArray(resumoCaixa)?resumoCaixa:[]
+  };
 
   const curLabel = currentMonthLabel();
   const curYM = currentMonthYM();

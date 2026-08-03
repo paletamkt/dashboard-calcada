@@ -122,7 +122,11 @@ function generateMockData() {
     { id: 2, created_at: new Date(hoje-7*86400000).toISOString(), arquivo: 'export_mensal_fake.xlsx', modo: 'monthly', periodos: [periodo], contagens: {ca_turno:30,ca_grupos:24,ca_produtos:260}, sucesso: true, erro: null }
   ];
 
-  return { ca_turno: turno, ca_grupos, ca_horario, ca_atendente, ca_produtos, ca_comandas, ca_notas, ca_import_log };
+  const ca_resumo_caixa = [
+    { periodo, comandas: 460, pessoas: 620, ticket_medio: 176.09, ticket_pessoa: 130.65, ocupacao_mesa: 150.2, faturamento_mesa: 280.5, total_faturado: 81000 }
+  ];
+
+  return { ca_turno: turno, ca_grupos, ca_horario, ca_atendente, ca_produtos, ca_comandas, ca_notas, ca_import_log, ca_resumo_caixa };
 }
 
 function enableDevMode() {
