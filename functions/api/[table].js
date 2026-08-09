@@ -8,6 +8,33 @@ const ALLOWED_TABLES = new Set([
 ]);
 
 const MAX_LIMIT = 10000;
+const PAGE_SIZE = 1000; // o Supabase (PostgREST) tem um teto de linhas por resposta
+                         // (Max Rows do projeto) que ignora silenciosamente ?limit=
+                         // maior que isso — sem paginar aqui, tabelas grandes como
+                         // ca_produtos voltavam cortadas nas primeiras linhas.
+
+// Busca em páginas via Range header (ordenado por id, que existe em toda tabela
+// aqui) até juntar `limit` linhas ou a tabela acabar.
+async function fetchPaginated(env, table, query, limit) {
+  let rows = [];
+  let offset = 0;
+  while (rows.length < limit) {
+    const pageLimit = Math.min(PAGE_SIZE, limit - rows.length);
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${query}&order=id.asc`, {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        Range: `${offset}-${offset + pageLimit - 1}`
+      }
+    });
+    if (!res.ok) return { ok: false, status: res.status, body: await res.text() };
+    const page = await res.json();
+    rows = rows.concat(page);
+    if (page.length < pageLimit) break;
+    offset += pageLimit;
+  }
+  return { ok: true, rows };
+}
 
 // Confirma que o token enviado pelo navegador é uma sessão válida do Supabase Auth.
 // Sem isso, a tela de login não protegeria nada — qualquer um poderia chamar
@@ -44,29 +71,46 @@ export async function onRequestGet(context) {
     });
   }
 
-  let query;
   if (table === 'ca_notas') {
-    query = 'select=*&ativo=eq.true&limit=100';
-  } else if (table === 'ca_import_log') {
-    query = 'select=*&order=created_at.desc&limit=30';
-  } else {
-    const url = new URL(request.url);
-    const requested = parseInt(url.searchParams.get('limit'), 10);
-    const limit = Number.isFinite(requested) ? Math.min(requested, MAX_LIMIT) : MAX_LIMIT;
-    query = `select=*&limit=${limit}`;
+    const upstream = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?select=*&ativo=eq.true&limit=100`, {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+      }
+    });
+    return new Response(await upstream.text(), {
+      status: upstream.status,
+      headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=15' }
+    });
   }
 
-  const upstream = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${query}`, {
-    headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
-    }
-  });
+  if (table === 'ca_import_log') {
+    const upstream = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?select=*&order=created_at.desc&limit=30`, {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
+      }
+    });
+    return new Response(await upstream.text(), {
+      status: upstream.status,
+      headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=15' }
+    });
+  }
 
-  const body = await upstream.text();
+  const url = new URL(request.url);
+  const requested = parseInt(url.searchParams.get('limit'), 10);
+  const limit = Number.isFinite(requested) ? Math.min(requested, MAX_LIMIT) : MAX_LIMIT;
 
-  return new Response(body, {
-    status: upstream.status,
+  const result = await fetchPaginated(env, table, 'select=*', limit);
+  if (!result.ok) {
+    return new Response(result.body, {
+      status: result.status,
+      headers: { 'content-type': 'application/json' }
+    });
+  }
+
+  return new Response(JSON.stringify(result.rows), {
+    status: 200,
     headers: {
       'content-type': 'application/json',
       'cache-control': 'private, max-age=15'
