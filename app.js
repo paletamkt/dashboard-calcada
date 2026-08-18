@@ -484,6 +484,83 @@ function renderImportacoes() {
     </div>`).join('');
 }
 
+const TABLE_LABELS = { ca_turno: 'Turno', ca_grupos: 'Grupos', ca_horario: 'Horário', ca_atendente: 'Atendentes', ca_produtos: 'Produtos', ca_comandas: 'Comandas' };
+
+async function analyzeImportFile() {
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files[0];
+  const box = document.getElementById('importPreview');
+  if (!file) { box.innerHTML = '<div class="import-err">Escolha um arquivo .xlsx primeiro.</div>'; return; }
+  if (window.DEV_MODE) { box.innerHTML = '<div class="import-warn">Upload não funciona em modo de desenvolvedor (dados fictícios).</div>'; return; }
+
+  box.innerHTML = '<div class="import-preview-box">Analisando...</div>';
+  const form = new FormData();
+  form.append('file', file);
+  form.append('mode', 'preview');
+
+  let res, data;
+  try {
+    res = await fetch('/api/import', { method: 'POST', body: form, headers: window.authHeaders ? window.authHeaders() : {} });
+    data = await res.json();
+  } catch (e) {
+    box.innerHTML = `<div class="import-err">Falha ao conectar: ${e.message}</div>`;
+    return;
+  }
+  if (!res.ok) {
+    box.innerHTML = `<div class="import-err">${data.error || 'Erro ao analisar o arquivo'}</div>`;
+    return;
+  }
+
+  const mode = document.querySelector('input[name="import-mode"]:checked').value;
+  const countsHtml = Object.entries(data.contagens).map(([t, n]) =>
+    `<div class="import-count"><b>${fmtNum(n)}</b>${TABLE_LABELS[t] || t}</div>`).join('');
+
+  box.innerHTML = `
+    <div class="import-preview-box">
+      <div><b>${file.name}</b> — abas encontradas: ${data.sheetNames.join(', ')}</div>
+      <div class="import-counts">${countsHtml}</div>
+      <div>Período(s) identificado(s): ${data.periodos.length ? data.periodos.join(', ') : '—'}</div>
+      ${mode === 'monthly' && data.periodos.length > 1 ? '<div class="import-warn">Mais de um período no arquivo — as notas automáticas não serão geradas.</div>' : ''}
+      ${data.contagens.ca_turno === 0 ? '<div class="import-warn">Nenhuma linha de Turno encontrada — confira se é o arquivo certo.</div>' : ''}
+      <div class="import-actions">
+        <button class="icon-btn import-btn-confirm" onclick="confirmImport()">Confirmar e importar (${mode === 'monthly' ? 'fechamento mensal' : 'export semanal'})</button>
+      </div>
+    </div>`;
+}
+
+async function confirmImport() {
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files[0];
+  const mode = document.querySelector('input[name="import-mode"]:checked').value;
+  const box = document.getElementById('importPreview');
+  if (!file) return;
+
+  const btn = document.querySelector('.import-btn-confirm');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importando...'; }
+
+  const form = new FormData();
+  form.append('file', file);
+  form.append('mode', mode);
+
+  let res, data;
+  try {
+    res = await fetch('/api/import', { method: 'POST', body: form, headers: window.authHeaders ? window.authHeaders() : {} });
+    data = await res.json();
+  } catch (e) {
+    box.innerHTML += `<div class="import-err">Falha ao conectar: ${e.message}</div>`;
+    return;
+  }
+  if (!res.ok) {
+    box.innerHTML += `<div class="import-err">${data.error || 'Erro ao importar'}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Tentar novamente'; }
+    return;
+  }
+
+  box.innerHTML = `<div class="import-preview-box import-ok">✓ Import concluído — ${data.periodos.join(', ') || 'sem período identificado'}.</div>`;
+  fileInput.value = '';
+  await loadAll();
+}
+
 // ===== CARREGAMENTO GERAL =====
 async function loadAll() {
   document.getElementById('hdrPeriodo').textContent = 'Atualizando...';

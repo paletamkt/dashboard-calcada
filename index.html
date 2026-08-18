@@ -234,7 +234,19 @@
   <!-- ═══ IMPORTAÇÕES ═══ -->
   <div class="page" id="page-importacoes">
     <div class="panel">
-      <div class="panel-h"><span class="panel-title">Últimas importações</span><span class="panel-sub">Só leitura — o import roda por fora, via import-pipeline</span></div>
+      <div class="panel-h"><span class="panel-title">Importar planilha do iComanda</span></div>
+      <div class="import-form">
+        <div class="import-row">
+          <label class="import-radio"><input type="radio" name="import-mode" value="turno-only" checked> Export semanal (só Turno)</label>
+          <label class="import-radio"><input type="radio" name="import-mode" value="monthly"> Fechamento mensal (relatório completo)</label>
+        </div>
+        <input type="file" id="importFile" accept=".xlsx" class="import-file">
+        <button class="icon-btn" id="importAnalyzeBtn" onclick="analyzeImportFile()">Analisar arquivo</button>
+      </div>
+      <div id="importPreview"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Últimas importações</span></div>
       <div id="importLogRows"></div>
     </div>
   </div>

@@ -169,6 +169,21 @@ tbody tr:last-child td{border-bottom:none}
 .log-err{color:var(--red);font-weight:600}
 .log-meta{color:var(--text-muted);font-size:11px}
 
+.import-form{display:flex;flex-direction:column;gap:12px;margin-bottom:8px}
+.import-row{display:flex;gap:18px;flex-wrap:wrap}
+.import-radio{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer}
+.import-file{font-size:12px;color:var(--text-secondary)}
+.import-preview-box{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:12px}
+.import-counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:10px 0}
+.import-count{background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px}
+.import-count b{display:block;font-size:16px;color:var(--text-primary)}
+.import-warn{color:var(--orange);font-size:12px;margin-top:8px}
+.import-err{color:var(--red);font-size:12px;margin-top:8px}
+.import-ok{color:var(--green);font-size:12px;margin-top:8px;font-weight:600}
+.import-actions{display:flex;gap:10px;margin-top:12px}
+.import-btn-confirm{background:var(--blue);color:#fff;border:none;font-size:12px;padding:8px 16px;border-radius:20px;cursor:pointer}
+.import-btn-confirm:disabled{opacity:.5;cursor:not-allowed}
+
 /* Ocultar valores */
 .hide-val{transition:filter .15s}
 body.values-hidden .hide-val{filter:blur(6px);user-select:none}
