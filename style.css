@@ -184,6 +184,8 @@ tbody tr:last-child td{border-bottom:none}
 .import-btn-confirm{background:var(--blue);color:#fff;border:none;font-size:12px;padding:8px 16px;border-radius:20px;cursor:pointer}
 .import-btn-confirm:disabled{opacity:.5;cursor:not-allowed}
 
+.partial-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--yellow);color:#7D6008;margin-left:8px;text-transform:uppercase;letter-spacing:.05em}
+
 /* Ocultar valores */
 .hide-val{transition:filter .15s}
 body.values-hidden .hide-val{filter:blur(6px);user-select:none}

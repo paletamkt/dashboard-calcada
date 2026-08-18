@@ -207,6 +207,35 @@ function sameMonthLastYear(label) {
   const [mes, ano] = label.split('/');
   return `${mes}/${String(parseInt(ano,10)-1).padStart(2,'0')}`;
 }
+function getDateRangeForPeriod(label, turnoData) {
+  const ym = labelToYM(label);
+  if (!ym) return null;
+  const rows = turnoData.filter(d => d.data && d.data.slice(0, 7) === ym);
+  if (rows.length === 0) return null;
+  const dates = rows.map(d => parseInt(d.data.slice(8, 10), 10)).filter(d => !isNaN(d));
+  if (dates.length === 0) return null;
+  const minDay = Math.min(...dates);
+  const maxDay = Math.max(...dates);
+  return { minDay, maxDay };
+}
+function isPartialMonth(label, turnoData) {
+  if (label !== currentMonthLabel()) return null;
+  const range = getDateRangeForPeriod(label, turnoData);
+  if (!range) return null;
+  const hoje = new Date();
+  const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
+  if (hoje.getDate() === ultimoDiaMes) return null;
+  if (range.maxDay < ultimoDiaMes) {
+    return `${label} (parcial, 1–${range.maxDay})`;
+  }
+  return null;
+}
+function renderPartialBadge(label, turnoData) {
+  const badge = isPartialMonth(label, turnoData);
+  if (!badge) return '';
+  return ` <span class="partial-badge">${badge}</span>`;
+}
+
 function renderGeral() {
   const curLabel = document.getElementById('sel-geral').value || currentMonthLabel();
   const prevLabel = previousLabelOf(curLabel);
@@ -217,9 +246,10 @@ function renderGeral() {
 
   const hoje = new Date();
   const isMesAtual = curLabel === currentMonthLabel();
-  document.getElementById('geralFatLbl').textContent = isMesAtual
-    ? `FATURAMENTO · ${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()}`
-    : `FATURAMENTO · ${curLabel}`;
+  const partialBadge = renderPartialBadge(curLabel, DATA.turno);
+  document.getElementById('geralFatLbl').innerHTML = isMesAtual
+    ? `FATURAMENTO · ${MESES_ABREV[hoje.getMonth()]} 1–${hoje.getDate()}${partialBadge}`
+    : `FATURAMENTO · ${curLabel}${partialBadge}`;
 
   if (comandasMes.length === 0) {
     document.getElementById('geralFatNum').textContent = 'Sem dados ainda';
