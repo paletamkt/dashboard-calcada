@@ -359,7 +359,6 @@ function filterTurno(tipo, btn) {
   btn.classList.add('on');
   renderOperacao();
 }
-  renderGeralRedesSociais();
 
 function renderOperacao() {
   const p = document.getElementById('sel-turno').value;
@@ -595,7 +594,6 @@ async function confirmImport() {
 
 // ===== CARREGAMENTO GERAL =====
 async function loadAll() {
-  renderRedesSociais();
   document.getElementById('hdrPeriodo').textContent = 'Atualizando...';
 
   const [turno,grupos,horario,atendente,produtos,comandas,notas,importLog,resumoCaixa] = await Promise.all([
@@ -656,81 +654,22 @@ async function loadAll() {
 }
 
 // ===== REDES SOCIAIS =====
-const REDES_SOCIAIS = {
-  instagram: {
-    nome: 'Instagram',
-    seguidores: 5240,
-    crescimento: 12.5,
-    engagement: 8.3,
-    url: 'https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS'
-  },
-  tiktok: {
-    nome: 'TikTok',
-    seguidores: 2890,
-    crescimento: 28.7,
-    engagement: 15.2,
-    url: 'https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS'
-  },
-  facebook: {
-    nome: 'Facebook',
-    seguidores: 8150,
-    crescimento: 5.3,
-    engagement: 4.1,
-    url: 'https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS'
-  },
-  youtube: {
-    nome: 'YouTube',
-    seguidores: 1240,
-    crescimento: 18.9,
-    engagement: 12.5,
-    url: 'https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS'
-  }
-};
 
-function renderRedesSociais(platform = 'instagram', btn = null) {
-  if (btn) {
-    document.querySelectorAll('#redesSociaisChips .chip').forEach(c => c.classList.remove('on'));
-    btn.classList.add('on');
-  }
-  
-  const data = REDES_SOCIAIS[platform];
-  if (!data) return;
-
-  // Métricas
-  const metricas = [
-    { label: 'Seguidores', valor: fmtNum(data.seguidores), delta: data.crescimento, up: true },
-    { label: 'Engagement', valor: data.engagement.toFixed(1) + '%', delta: 2.1, up: true },
-    { label: 'Crescimento', valor: '+' + data.crescimento.toFixed(1) + '%', delta: null, up: true }
-  ];
-
-  document.getElementById('redesSociaisMetricas').innerHTML = metricas.map(m => `
-    <div class="kpi">
-      <div class="kpi-l">${m.label}</div>
-      <div class="kpi-v hide-val">${m.valor}</div>
-      ${m.delta ? `<div class="kpi-s ${m.up ? 'up' : 'dn'}">↑ ${m.delta.toFixed(1)}% vs mês anterior</div>` : ''}
-    </div>
-  `).join('');
-
-  // Embed
-  document.getElementById('redesSociaisEmbed').innerHTML = `
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
-      <iframe title="report" src="${data.url}" 
-        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 8px;"
+// ===== REDES SOCIAIS =====
+function renderRedesSociais() {
+  const embed = document.getElementById('redesSociaisEmbed');
+  if (!embed) return;
+  embed.innerHTML = `
+    <div style="position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 10px; background: var(--surface-2);">
+      <iframe title="Reportei Dashboard - Calçada Alta" 
+        src="https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS" 
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 10px;"
         allow="clipboard-write"></iframe>
     </div>
   `;
 }
 
-function renderGeralRedesSociais() {
-  const plataformas = ['instagram', 'tiktok', 'facebook'];
-  document.getElementById('geralRedesSociais').innerHTML = plataformas.map(p => {
-    const data = REDES_SOCIAIS[p];
-    return `
-      <div class="kpi">
-        <div class="kpi-l">${data.nome}</div>
-        <div class="kpi-v hide-val" style="font-size: 18px;">${fmtNum(data.seguidores)}</div>
-        <div class="kpi-s up">↑ ${data.crescimento.toFixed(1)}%</div>
-      </div>
-    `;
-  }).join('');
+// Initialize on page load
+if (document.getElementById('redesSociaisEmbed')) {
+  renderRedesSociais();
 }
