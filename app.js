@@ -654,8 +654,6 @@ async function loadAll() {
 }
 
 // ===== REDES SOCIAIS =====
-
-// ===== REDES SOCIAIS =====
 function renderRedesSociais() {
   const embed = document.getElementById('redesSociaisEmbed');
   if (!embed) return;
