@@ -658,10 +658,10 @@ function renderRedesSociais() {
   const embed = document.getElementById('redesSociaisEmbed');
   if (!embed) return;
   embed.innerHTML = `
-    <div style="position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 10px; background: var(--surface-2);">
-      <iframe title="Reportei Dashboard - Calçada Alta" 
-        src="https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS" 
-        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 10px;"
+    <div style="width: 100%; border-radius: 10px; overflow: hidden; background: var(--surface-2);">
+      <iframe title="Reportei Dashboard - Calçada Alta"
+        src="https://app.reportei.com/embed/IL1h8I2vB11IC1KE20TwWOHCYvykU5CS"
+        style="display: block; width: 100%; height: 85vh; min-height: 700px; border: none;"
         allow="clipboard-write"></iframe>
     </div>
   `;
