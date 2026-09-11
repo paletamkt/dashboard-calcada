@@ -98,18 +98,67 @@ export function extractPeriodFromHeader(sheet) {
   return `${MESES_ABREV[mi]}/${year}`;
 }
 
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+// Varre todas as abas procurando o cabeçalho "DD/MM/AA ... DD/MM/AA" (a aba de
+// Turno raramente tem esse cabeçalho, mas as outras abas do mesmo export têm).
+function extractDateRangeFromWorkbook(workbook) {
+  for (const sheetName of workbook.SheetNames) {
+    const header = workbook.Sheets[sheetName]['A1']?.v || '';
+    const dates = String(header).match(/\d{1,2}\/\d{1,2}\/\d{2}/g);
+    if (dates && dates.length >= 2) {
+      const start = parsePortugueseDate(dates[0]);
+      const end = parsePortugueseDate(dates[dates.length - 1]);
+      if (start && end) return { start, end };
+    }
+  }
+  return null;
+}
+
+// Dado um dia da semana abreviado (ex.: "Ter") e um intervalo {start,end},
+// encontra a única data dentro do intervalo que cai nesse dia da semana.
+function findDateBySemanaInRange(semanaAbrev, range) {
+  if (!range || !semanaAbrev) return null;
+  const d = new Date(range.start + 'T00:00:00Z');
+  const end = new Date(range.end + 'T00:00:00Z');
+  for (; d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (DIAS_SEMANA[d.getUTCDay()] === semanaAbrev.trim()) {
+      return d.toISOString().split('T')[0];
+    }
+  }
+  return null;
+}
+
 export function processTurno(workbook) {
   const sheet = findSheet(workbook, 'Turno');
   if (!sheet) return [];
   const data = XLSX.utils.sheet_to_json(sheet, { range: 1 });
+  // Bug visto num export do iComanda (Set/26, "01 a 06.09"): o serial de data
+  // de cada linha "voltava" ~1 mês em vez de andar 1 dia, gerando datas fora
+  // do período real do export. Detecta isso comparando com o intervalo
+  // declarado no cabeçalho das outras abas e corrige usando o dia da semana,
+  // que é inambíguo dentro de uma janela de até 7 dias.
+  const dateRange = extractDateRangeFromWorkbook(workbook);
   return data
     .filter(row => row['Data'])
     .map(row => {
       const faturado = normalizeCurrency(row['R$ Faturado']);
       const comandas = normalizeInteger(row['Comandas']);
+      let dataNormalizada = normalizeDate(row['Data']);
+
+      if (dateRange && dataNormalizada) {
+        const padStart = new Date(dateRange.start + 'T00:00:00Z'); padStart.setUTCDate(padStart.getUTCDate() - 1);
+        const padEnd = new Date(dateRange.end + 'T00:00:00Z'); padEnd.setUTCDate(padEnd.getUTCDate() + 1);
+        const d = new Date(dataNormalizada + 'T00:00:00Z');
+        if (d < padStart || d > padEnd) {
+          const corrigida = findDateBySemanaInRange(row['Semana'], dateRange);
+          if (corrigida) dataNormalizada = corrigida;
+        }
+      }
+
       return {
         caixa: normalizeInteger(row['Caixa']),
-        data: normalizeDate(row['Data']),
+        data: dataNormalizada,
         semana: row['Semana'],
         turno: row['Turno'],
         tipo: row['Tipo'] || null,
@@ -212,14 +261,21 @@ export function processComandas(workbook) {
   const period = extractPeriodFromHeader(sheet);
   return data
     .filter(row => row['Nome'])
-    .map(row => ({
-      nome: row['Nome'],
-      qtd_pedidos: normalizeInteger(row['Qtd. Pedidos']),
-      total: normalizeCurrency(row['Total R$']),
-      ticket_medio: normalizeCurrency(row['Ticket Médio R$']),
-      participacao: normalizePercent(row['%']),
-      periodo: period
-    }))
+    // O iComanda sempre exporta uma linha "Loja" com os mesmos totais de "Mesa"
+    // (é um agregador interno da ferramenta, não um canal de venda de verdade) —
+    // descartamos pra não duplicar faturamento na análise de canais.
+    .filter(row => String(row['Nome']).trim().toLowerCase() !== 'loja')
+    .map(row => {
+      const pct = normalizePercent(row['%']);
+      return {
+        nome: row['Nome'],
+        qtd_pedidos: normalizeInteger(row['Qtd. Pedidos']),
+        total: normalizeCurrency(row['Total R$']),
+        ticket_medio: normalizeCurrency(row['Ticket Médio R$']),
+        participacao: pct !== null ? pct / 100 : null,
+        periodo: period
+      };
+    })
     .filter(row => row.nome);
 }
 

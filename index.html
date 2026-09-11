@@ -113,6 +113,11 @@
     <div id="geralNotas" class="notas"></div>
 
     <div class="panel">
+      <div class="panel-h"><span class="panel-title">Análise: Salão vs Delivery</span><span class="panel-sub">Comparativo com mês anterior e ano passado</span></div>
+      <div id="geralCompAnalise"></div>
+    </div>
+
+    <div class="panel">
       <div class="panel-h"><span class="panel-title">Top grupos de produtos</span><span class="panel-sub" id="geralGruposPeriodo"></span></div>
       <div class="rows" id="geralGruposRows"></div>
     </div>
@@ -238,7 +243,7 @@
       <div class="panel-h"><span class="panel-title">Importar planilha do iComanda</span></div>
       <div class="import-form">
         <div class="import-row">
-          <label class="import-radio"><input type="radio" name="import-mode" value="turno-only" checked> Export semanal (só Turno)</label>
+          <label class="import-radio"><input type="radio" name="import-mode" value="turno-only" checked> Export semanal (mês parcial)</label>
           <label class="import-radio"><input type="radio" name="import-mode" value="monthly"> Fechamento mensal (relatório completo)</label>
         </div>
         <input type="file" id="importFile" accept=".xlsx" class="import-file">

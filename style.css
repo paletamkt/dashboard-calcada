@@ -149,13 +149,26 @@ tbody tr:last-child td{border-bottom:none}
 .no-results{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:13px}
 
 /* Notas */
-.notas{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
-.nota{border-radius:0 8px 8px 0;padding:10px 14px;display:flex;gap:10px;font-size:12px;line-height:1.5;border-left:3px solid}
-.nota.destaque{background:var(--verde-light);border-left-color:var(--verde)}
-.nota.alerta{background:var(--vermelho-light);border-left-color:var(--red)}
-.nota.aviso{background:#FEF9EC;border-left-color:var(--yellow)}
-.nota.observacao{background:#EFF6FF;border-left-color:var(--blue)}
-.nota-texto{color:var(--text-secondary)}
+.notas{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.nota{border-radius:8px;padding:14px 16px;display:flex;gap:12px;font-size:13px;line-height:1.6;border-left:4px solid;background:var(--surface-1);border:1px solid;font-weight:500}
+.nota.destaque{background:var(--verde-light);border-left-color:var(--verde);border-color:var(--verde);color:#145C2E}
+.nota.alerta{background:var(--vermelho-light);border-left-color:var(--red);border-color:var(--red);color:#8B2E1F}
+.nota.aviso{background:#FEF9EC;border-left-color:var(--yellow);border-color:var(--yellow);color:#7D6008}
+.nota.observacao{background:#EFF6FF;border-left-color:var(--blue);border-color:var(--blue);color:#0A3A66}
+.nota-texto{color:inherit}
+
+/* Análise Comparativa */
+.comp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.comp-col{display:flex;flex-direction:column;gap:16px}
+.comp-header{font-size:13px;font-weight:700;color:var(--text-primary);padding-bottom:8px;border-bottom:2px solid var(--border)}
+.comp-metric{display:flex;flex-direction:column;gap:6px;background:var(--surface-2);border-radius:8px;padding:12px 14px}
+.comp-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.comp-val{font-size:20px;font-weight:700;color:var(--text-primary)}
+.comp-deltas{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.comp-delta{font-size:11px;font-weight:600}
+.comp-delta.up{color:var(--green)}
+.comp-delta.dn{color:var(--red)}
+@media (max-width:700px){.comp-grid{grid-template-columns:1fr}}
 
 /* Tags turno */
 .tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px}

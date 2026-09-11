@@ -187,16 +187,22 @@ export async function onRequestPost(context) {
     await upsertTurno(env, turno);
     await replaceForPeriods(env, 'ca_comandas', comandas);
 
+    // ca_grupos/horario/atendente/produtos são agregados por (nome/hora, periodo),
+    // onde periodo é o MÊS — não têm granularidade diária. Atualizamos mesmo em
+    // turno-only: cada export do iComanda normalmente já vem acumulado desde o
+    // dia 1 do mês até a data do export, então isso mantém "Top grupos de
+    // produtos" e afins atualizados ao longo do mês, não só no fechamento.
+    await replaceForPeriods(env, 'ca_grupos', grupos);
+    await replaceForPeriods(env, 'ca_horario', horario);
+    await replaceForPeriods(env, 'ca_atendente', atendente);
+    await replaceForPeriods(env, 'ca_produtos', produtos);
+
+    // Notas automáticas comparam mês atual vs. anterior — só fazem sentido com
+    // o mês FECHADO (monthly), senão geram insight enganoso.
     let notasGeradas = false;
-    if (mode === 'monthly') {
-      await replaceForPeriods(env, 'ca_grupos', grupos);
-      await replaceForPeriods(env, 'ca_horario', horario);
-      await replaceForPeriods(env, 'ca_atendente', atendente);
-      await replaceForPeriods(env, 'ca_produtos', produtos);
-      if (periodos.length === 1) {
-        await generateNotas(env, periodos[0]);
-        notasGeradas = true;
-      }
+    if (mode === 'monthly' && periodos.length === 1) {
+      await generateNotas(env, periodos[0]);
+      notasGeradas = true;
     }
 
     await logImport(env, { arquivo: file.name, modo: mode, periodos, contagens, sucesso: true });

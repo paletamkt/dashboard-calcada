@@ -169,20 +169,69 @@ function extractPeriodFromHeader(sheet) {
   return `${MESES_ABREV[mi]}/${year}`;
 }
 
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+// Varre todas as abas procurando o cabeçalho "DD/MM/AA ... DD/MM/AA" (a aba de
+// Turno raramente tem esse cabeçalho, mas as outras abas do mesmo export têm).
+function extractDateRangeFromWorkbook(workbook) {
+  for (const sheetName of workbook.SheetNames) {
+    const header = workbook.Sheets[sheetName]['A1']?.v || '';
+    const dates = String(header).match(/\d{1,2}\/\d{1,2}\/\d{2}/g);
+    if (dates && dates.length >= 2) {
+      const start = parsePortugueseDate(dates[0]);
+      const end = parsePortugueseDate(dates[dates.length - 1]);
+      if (start && end) return { start, end };
+    }
+  }
+  return null;
+}
+
+// Dado um dia da semana abreviado (ex.: "Ter") e um intervalo {start,end},
+// encontra a única data dentro do intervalo que cai nesse dia da semana.
+function findDateBySemanaInRange(semanaAbrev, range) {
+  if (!range || !semanaAbrev) return null;
+  const d = new Date(range.start + 'T00:00:00Z');
+  const end = new Date(range.end + 'T00:00:00Z');
+  for (; d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (DIAS_SEMANA[d.getUTCDay()] === semanaAbrev.trim()) {
+      return d.toISOString().split('T')[0];
+    }
+  }
+  return null;
+}
+
 function processTurno(workbook) {
   const sheet = findSheet(workbook, 'Turno');
   if (!sheet) return [];
 
   const data = XLSX.utils.sheet_to_json(sheet, { range: 1 });
+  // Bug visto num export do iComanda (Set/26, "01 a 06.09"): o serial de data
+  // de cada linha "voltava" ~1 mês em vez de andar 1 dia, gerando datas fora
+  // do período real do export. Detecta isso comparando com o intervalo
+  // declarado no cabeçalho das outras abas e corrige usando o dia da semana,
+  // que é inambíguo dentro de uma janela de até 7 dias.
+  const dateRange = extractDateRangeFromWorkbook(workbook);
 
   return data
     .filter(row => row['Data'])
     .map(row => {
       const faturado = normalizeCurrency(row['R$ Faturado']);
       const comandas = normalizeInteger(row['Comandas']);
+      let dataNormalizada = normalizeDate(row['Data']);
+
+      if (dateRange && dataNormalizada) {
+        const padStart = new Date(dateRange.start + 'T00:00:00Z'); padStart.setUTCDate(padStart.getUTCDate() - 1);
+        const padEnd = new Date(dateRange.end + 'T00:00:00Z'); padEnd.setUTCDate(padEnd.getUTCDate() + 1);
+        const d = new Date(dataNormalizada + 'T00:00:00Z');
+        if (d < padStart || d > padEnd) {
+          const corrigida = findDateBySemanaInRange(row['Semana'], dateRange);
+          if (corrigida) dataNormalizada = corrigida;
+        }
+      }
+
       return {
         caixa: normalizeInteger(row['Caixa']),
-        data: normalizeDate(row['Data']),
+        data: dataNormalizada,
         semana: row['Semana'],
         turno: row['Turno'],
         tipo: row['Tipo'] || null,
@@ -295,14 +344,21 @@ function processComandas(workbook) {
 
   return data
     .filter(row => row['Nome']) // descarta a linha de total (Nome vazio)
-    .map(row => ({
-      nome: row['Nome'],
-      qtd_pedidos: normalizeInteger(row['Qtd. Pedidos']),
-      total: normalizeCurrency(row['Total R$']),
-      ticket_medio: normalizeCurrency(row['Ticket Médio R$']),
-      participacao: normalizePercent(row['%']),
-      periodo: period
-    }))
+    // O iComanda sempre exporta uma linha "Loja" com os mesmos totais de "Mesa"
+    // (é um agregador interno da ferramenta, não um canal de venda de verdade) —
+    // descartamos pra não duplicar faturamento na análise de canais.
+    .filter(row => String(row['Nome']).trim().toLowerCase() !== 'loja')
+    .map(row => {
+      const pct = normalizePercent(row['%']);
+      return {
+        nome: row['Nome'],
+        qtd_pedidos: normalizeInteger(row['Qtd. Pedidos']),
+        total: normalizeCurrency(row['Total R$']),
+        ticket_medio: normalizeCurrency(row['Ticket Médio R$']),
+        participacao: pct !== null ? pct / 100 : null,
+        periodo: period
+      };
+    })
     .filter(row => row.nome);
 }
 
@@ -503,21 +559,28 @@ async function importFromExcel(filePath, { dryRun, mode }) {
     // --turno-only, pra esse card não ficar desatualizado ao longo do mês.
     await replaceForPeriods('ca_comandas', comandasData);
 
-    if (mode === 'turno-only') {
-      console.log(`\n✅ Import completo (ca_turno + ca_comandas — as outras tabelas por período não foram tocadas)!`);
-      await logImport({ filePath, mode, periodos, contagens, sucesso: true });
-      return;
-    }
-
-    // As tabelas abaixo são agregadas por (nome/hora, periodo) onde periodo é o
-    // MÊS ("Abr/26"), não a semana — só rodar com um relatório MENSAL FECHADO do
-    // iComanda (--monthly), nunca com um export semanal, ou o import sobrescreve
-    // o mês inteiro com os totais parciais daquela semana.
+    // ca_grupos/horario/atendente/produtos são agregados por (nome/hora, periodo),
+    // onde periodo é o MÊS ("Abr/26") — não têm granularidade diária. Mesmo assim
+    // atualizamos em --turno-only também: cada export do iComanda normalmente já
+    // vem acumulado desde o dia 1 do mês até a data do export (não é uma semana
+    // isolada), então isso dá "Top grupos de produtos" e similares atualizados
+    // ao longo do mês, não só no fechamento. Risco: se um export cobrir só um
+    // trecho do meio do mês (não desde o dia 1), essas tabelas ficam parciais
+    // até a próxima importação — daí o badge "(parcial)" no dashboard.
     await replaceForPeriods('ca_grupos', gruposData);
     await replaceForPeriods('ca_horario', horarioData);
     await replaceForPeriods('ca_atendente', atendenteData);
     await replaceForPeriods('ca_produtos', produtosData);
 
+    if (mode === 'turno-only') {
+      console.log(`\n✅ Import completo (mês ainda parcial — notas automáticas só rodam no fechamento mensal)!`);
+      await logImport({ filePath, mode, periodos, contagens, sucesso: true });
+      return;
+    }
+
+    // Notas automáticas comparam mês atual vs. anterior — só fazem sentido com
+    // o mês FECHADO (--monthly), senão geram insight enganoso ("queda de 80%"
+    // só porque só metade do mês foi importada).
     if (periodos.length === 1) {
       await generateNotas(periodos[0]);
     } else if (periodos.length > 1) {

@@ -333,7 +333,7 @@ function renderGeral() {
     <div class="kpi"><div class="kpi-l">Ticket médio</div><div class="kpi-v hide-val">${fmtBRL(ticketMedioMes)}</div><div class="kpi-s">${fonte}</div>${sTicket}</div>
     <div class="kpi"><div class="kpi-l">Comandas do mês</div><div class="kpi-v">${fmtNum(totComandasMes)}</div><div class="kpi-s">${fonte}</div>${sComandas}</div>
     <div class="kpi"><div class="kpi-l">Quantidade de pessoas</div><div class="kpi-v">${fmtNum(totPessoas)}</div><div class="kpi-s ${deltaPessoas!=null?(deltaPessoas>=0?'up':'dn'):''}">${deltaPessoas!=null?`${deltaPessoas>=0?'↑':'↓'} ${Math.abs(deltaPessoas).toFixed(1)}% vs. ${prevLabel} · ${fonte}`:fonte}</div>${sPessoas}</div>
-    <div class="kpi"><div class="kpi-l">Produto mais vendido</div><div class="kpi-v kpi-v-txt" title="${topProduto?topProduto.nome:''}">${topProduto?topProduto.nome:'—'}</div><div class="kpi-s">${topProduto?`${fmtNum(topProduto.qtd)} vendidos · fechamento mensal`:'sem fechamento pro mês'}</div></div>`;
+    <div class="kpi"><div class="kpi-l">Produto mais vendido</div><div class="kpi-v kpi-v-txt" title="${topProduto?topProduto.nome:''}">${topProduto?topProduto.nome:'—'}</div><div class="kpi-s">${topProduto?`${fmtNum(topProduto.qtd)} vendidos · última importação`:'sem dados ainda'}</div></div>`;
 
   renderNotas('geralNotas', 'ceo', curLabel);
 
@@ -341,7 +341,7 @@ function renderGeral() {
   const gruposMes = DATA.grupos.filter(d => d.periodo===curLabel);
   document.getElementById('geralGruposPeriodo').textContent = curLabel;
   if (gruposMes.length === 0) {
-    document.getElementById('geralGruposRows').innerHTML = '<div class="no-results">Grupos de produtos só ficam disponíveis no fechamento mensal</div>';
+    document.getElementById('geralGruposRows').innerHTML = '<div class="no-results">Sem dados de grupos pra esse período ainda</div>';
   } else {
     const top = [...gruposMes].sort((a,b)=>(Number(b.faturado)||0)-(Number(a.faturado)||0)).slice(0,6);
     const max = Math.max(...top.map(d=>Number(d.faturado)||0), 1);
@@ -350,6 +350,92 @@ function renderGeral() {
       <div class="row-track"><div class="row-fill" style="width:${(Number(d.faturado)/max*100).toFixed(1)}%"></div></div>
       <span class="row-val hide-val">${fmtBRL(d.faturado)}</span></div>`).join('');
   }
+
+  renderCompAnalise(curLabel, prevLabel, yoyLabel);
+}
+
+// ===== ANÁLISE COMPARATIVA: SALÃO VS DELIVERY =====
+function renderCompAnalise(curLabel, prevLabel, yoyLabel) {
+  const getChannelMetrics = (periodo) => {
+    const rows = DATA.comandas.filter(d => d.periodo === periodo);
+    const salao = rows.filter(d => (d.nome||'').toLowerCase() === 'mesa')[0] || {};
+    const delivery = rows.filter(d => (d.nome||'').toLowerCase() !== 'mesa');
+    const deliveryTotal = delivery.reduce((s,d) => s + (Number(d.total)||0), 0);
+    const deliveryPedidos = delivery.reduce((s,d) => s + (Number(d.qtd_pedidos)||0), 0);
+    return {
+      salao: {
+        faturado: Number(salao.total) || 0,
+        comandas: Number(salao.qtd_pedidos) || 0,
+        ticket: Number(salao.ticket_medio) || 0,
+      },
+      delivery: {
+        faturado: deliveryTotal,
+        comandas: deliveryPedidos,
+        ticket: deliveryPedidos > 0 ? deliveryTotal / deliveryPedidos : 0,
+      }
+    };
+  };
+
+  const cur = getChannelMetrics(curLabel);
+  const prev = getChannelMetrics(prevLabel);
+  const yoy = getChannelMetrics(yoyLabel);
+
+  const deltaPct = (atual, anterior) => {
+    if (anterior <= 0) return null;
+    const delta = ((atual - anterior) / anterior * 100);
+    return {pct: delta, label: `${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}%`, class: delta>=0?'up':'dn'};
+  };
+
+  const deltaHtml = (valor, anterior, label) => {
+    const d = deltaPct(valor, anterior);
+    return d ? `<div class="comp-delta ${d.class}">vs. ${label}: ${d.label}</div>` : '';
+  };
+
+  const html = `
+    <div class="comp-grid">
+      <div class="comp-col">
+        <div class="comp-header">Salão (Mesa)</div>
+        <div class="comp-metric">
+          <div class="comp-label">Ticket Médio</div>
+          <div class="comp-val hide-val">${fmtBRL(cur.salao.ticket)}</div>
+          <div class="comp-deltas">
+            ${deltaHtml(cur.salao.ticket, prev.salao.ticket, prevLabel)}
+            ${deltaHtml(cur.salao.ticket, yoy.salao.ticket, yoyLabel)}
+          </div>
+        </div>
+        <div class="comp-metric">
+          <div class="comp-label">Comandas</div>
+          <div class="comp-val">${fmtNum(cur.salao.comandas)}</div>
+          <div class="comp-deltas">
+            ${deltaHtml(cur.salao.comandas, prev.salao.comandas, prevLabel)}
+            ${deltaHtml(cur.salao.comandas, yoy.salao.comandas, yoyLabel)}
+          </div>
+        </div>
+      </div>
+      <div class="comp-col">
+        <div class="comp-header">Delivery</div>
+        <div class="comp-metric">
+          <div class="comp-label">Ticket Médio</div>
+          <div class="comp-val hide-val">${fmtBRL(cur.delivery.ticket)}</div>
+          <div class="comp-deltas">
+            ${deltaHtml(cur.delivery.ticket, prev.delivery.ticket, prevLabel)}
+            ${deltaHtml(cur.delivery.ticket, yoy.delivery.ticket, yoyLabel)}
+          </div>
+        </div>
+        <div class="comp-metric">
+          <div class="comp-label">Pedidos</div>
+          <div class="comp-val">${fmtNum(cur.delivery.comandas)}</div>
+          <div class="comp-deltas">
+            ${deltaHtml(cur.delivery.comandas, prev.delivery.comandas, prevLabel)}
+            ${deltaHtml(cur.delivery.comandas, yoy.delivery.comandas, yoyLabel)}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const el = document.getElementById('geralCompAnalise');
+  if (el) el.innerHTML = html;
 }
 
 // ===== OPERAÇÃO (Turno + Horário) =====
@@ -374,11 +460,10 @@ function renderOperacao() {
 
   // ca_turno só mede o Salão — mostra também o total do mês com todos os canais
   // (ca_comandas), quando o filtro for de um mês específico.
+  const labelDoFiltro = p ? `${MESES_ABREV[parseInt(p.split('-')[1],10)-1]}/${p.split('-')[0].slice(2)}` : null;
   let totalTodosCanais = null;
-  if (p) {
-    const [ano, mes] = p.split('-');
-    const label = `${MESES_ABREV[parseInt(mes,10)-1]}/${ano.slice(2)}`;
-    const comandasP = DATA.comandas.filter(d=>d.periodo===label);
+  if (labelDoFiltro) {
+    const comandasP = DATA.comandas.filter(d=>d.periodo===labelDoFiltro);
     if (comandasP.length) totalTodosCanais = comandasP.reduce((s,d)=>s+(Number(d.total)||0),0);
   }
 
@@ -393,12 +478,12 @@ function renderOperacao() {
   renderNotas('operacaoNotas', ['turno', 'diasemana'], periodo);
 
   // Horário — agregado pelas linhas filtradas por mês (ca_horario é por período, não por turno tipo)
-  const horarioRows = p ? DATA.horario.filter(d=>d.periodo===p) : DATA.horario;
+  const horarioRows = labelDoFiltro ? DATA.horario.filter(d=>d.periodo===labelDoFiltro) : DATA.horario;
   const aggH = {};
   horarioRows.forEach(d => { const h=Number(d.hora); if(!aggH[h]) aggH[h]={hora:h,faturado:0}; aggH[h].faturado+=Number(d.faturado)||0; });
   const aggHRows = Object.values(aggH).sort((a,b)=>a.hora-b.hora);
   if (aggHRows.length === 0) {
-    document.getElementById('operacaoHorarioRows').innerHTML = '<div class="no-results">Horário só fica disponível no fechamento mensal</div>';
+    document.getElementById('operacaoHorarioRows').innerHTML = '<div class="no-results">Sem dados de horário pra esse período ainda</div>';
   } else {
     const maxH = Math.max(...aggHRows.map(d=>d.faturado), 1);
     document.getElementById('operacaoHorarioRows').innerHTML = aggHRows.map(d => `
