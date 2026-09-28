@@ -457,7 +457,43 @@ function renderGeral() {
       <span class="row-val hide-val">${fmtBRL(d.faturado)}</span></div>`).join('');
   }
 
+  renderYtd(curLabel);
   renderCompAnalise(curLabel, prevLabel, yoyLabel);
+}
+
+// ===== ACUMULADO NO ANO =====
+function ytdSum(year, uptoMonthIdx) {
+  return DATA.comandas.reduce((s, d) => {
+    if (!d.periodo) return s;
+    const [mes, anoStr] = d.periodo.split('/');
+    const ano = 2000 + parseInt(anoStr, 10);
+    const mi = MESES_ABREV.indexOf(mes);
+    return (ano === year && mi <= uptoMonthIdx) ? s + (Number(d.total) || 0) : s;
+  }, 0);
+}
+
+function renderYtd(curLabel) {
+  const [mesAtual, anoStr] = curLabel.split('/');
+  const anoAtual = 2000 + parseInt(anoStr, 10);
+  const monthIdx = MESES_ABREV.indexOf(mesAtual);
+  const ytdAtual = ytdSum(anoAtual, monthIdx);
+  const ytdAnterior = ytdSum(anoAtual - 1, monthIdx);
+  const delta = ytdAnterior > 0 ? (ytdAtual - ytdAnterior) / ytdAnterior * 100 : null;
+  const rotulo = `Jan–${mesAtual}`;
+
+  document.getElementById('geralYtdPeriodo').textContent = `${rotulo}/${anoStr}`;
+  document.getElementById('geralYtdCard').innerHTML = `
+    <div class="ytd-row">
+      <div>
+        <div class="ytd-lbl">${rotulo}/${anoStr}</div>
+        <div class="ytd-val hide-val">${fmtBRL(ytdAtual)}</div>
+        ${delta != null ? `<div class="ytd-delta ${delta>=0?'up':'dn'}">${delta>=0?'↑':'↓'} ${Math.abs(delta).toFixed(1)}% vs. ${rotulo}/${String(anoAtual-1).slice(2)}</div>` : ''}
+      </div>
+      <div class="ytd-compare">
+        <div class="ytd-lbl">${rotulo}/${String(anoAtual-1).slice(2)}</div>
+        <div class="ytd-val-sm hide-val">${ytdAnterior > 0 ? fmtBRL(ytdAnterior) : 'Sem dados'}</div>
+      </div>
+    </div>`;
 }
 
 // ===== ANÁLISE COMPARATIVA: SALÃO VS DELIVERY =====
