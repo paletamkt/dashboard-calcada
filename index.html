@@ -224,6 +224,28 @@
       </div>
       <div id="graficoWrap"></div>
     </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-title">Dia a dia vs. média do dia da semana</span><span class="panel-sub" id="diaSemanaPeriodo"></span></div>
+      <div class="chip-group" id="diaSemanaMetricChips">
+        <button class="chip on" data-metric="faturado" onclick="renderDiaSemana('faturado', this)">Faturamento</button>
+        <button class="chip" data-metric="pessoas" onclick="renderDiaSemana('pessoas', this)">Pessoas</button>
+        <button class="chip" data-metric="comandas" onclick="renderDiaSemana('comandas', this)">Comandas</button>
+        <button class="chip" data-metric="ticketMedio" onclick="renderDiaSemana('ticketMedio', this)">Ticket médio</button>
+      </div>
+      <div class="chip-group" id="diaSemanaJanelaChips" style="margin-top:8px">
+        <button class="chip" data-w="4" onclick="setDiaSemanaJanela(4, this)">4 semanas</button>
+        <button class="chip on" data-w="6" onclick="setDiaSemanaJanela(6, this)">6 semanas</button>
+        <button class="chip" data-w="8" onclick="setDiaSemanaJanela(8, this)">8 semanas</button>
+        <button class="chip" data-w="12" onclick="setDiaSemanaJanela(12, this)">12 semanas</button>
+      </div>
+      <div class="dia-semana-legend">
+        <span><i class="dot dot-up"></i> Acima da média do dia</span>
+        <span><i class="dot dot-dn"></i> Abaixo da média do dia</span>
+        <span><i class="dot dot-neutral"></i> Sem histórico suficiente ainda</span>
+      </div>
+      <div class="tbl-wrap" id="diaSemanaWrap"></div>
+    </div>
   </div>
 
   <!-- ═══ COMPARAR ═══ -->

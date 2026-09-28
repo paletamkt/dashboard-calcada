@@ -170,6 +170,15 @@ tbody tr:last-child td{border-bottom:none}
 .comp-delta.dn{color:var(--red)}
 @media (max-width:700px){.comp-grid{grid-template-columns:1fr}}
 
+/* Dia a dia vs. média do dia da semana */
+.dia-semana-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);margin:10px 0}
+.dia-semana-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.dot-up{background:var(--green)}
+.dot-dn{background:var(--red)}
+.dot-neutral{background:var(--border2,#D0CCC3)}
+.dia-semana-bar-lbl{font-size:9px;fill:var(--text-muted)}
+.dia-semana-pct{font-size:9px;font-weight:700}
+
 /* Tags turno */
 .tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px}
 .tag-almoco{background:var(--verde-light);color:var(--verde-dark)}

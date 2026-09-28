@@ -121,6 +121,112 @@ function renderGraficos(metric, btn) {
   document.getElementById('graficoWrap').innerHTML = lineChart(serie, GRAFICO_METRICA, spec.color, spec.fmt);
 }
 
+// ===== DIA A DIA VS. MÉDIA DO DIA DA SEMANA =====
+// Agrega ca_turno por data (um turno de café pode ser separado de almoço/
+// jantar no mesmo dia — aqui somamos tudo do dia).
+function dailySeries() {
+  const byDate = {};
+  DATA.turno.forEach(d => {
+    if (!d.data) return;
+    if (!byDate[d.data]) byDate[d.data] = { data: d.data, semana: d.semana, faturado: 0, comandas: 0, pessoas: 0 };
+    byDate[d.data].faturado += Number(d.faturado) || 0;
+    byDate[d.data].comandas += Number(d.comandas) || 0;
+    byDate[d.data].pessoas += Number(d.pessoas) || 0;
+  });
+  return Object.values(byDate)
+    .sort((a, b) => a.data < b.data ? -1 : 1)
+    .map(d => ({ ...d, ticketMedio: d.comandas > 0 ? d.faturado / d.comandas : 0 }));
+}
+
+// Pra cada dia, calcula a média móvel do MESMO dia da semana usando só
+// ocorrências ANTERIORES a ele (nunca inclui o próprio dia) — janela de até
+// JANELA_SEMANAS ocorrências. Precisa de pelo menos 3 ocorrências anteriores
+// pra considerar a média confiável; senão marca como "sem histórico".
+function withWeekdayAverage(days, metric, janelaSemanas) {
+  const historico = {}; // semana -> valores anteriores (mais recente por último)
+  return days.map(d => {
+    const passados = historico[d.semana] || [];
+    const janela = passados.slice(-janelaSemanas);
+    const media = janela.length >= 3 ? janela.reduce((s, v) => s + v, 0) / janela.length : null;
+    const valor = d[metric];
+    if (!historico[d.semana]) historico[d.semana] = [];
+    historico[d.semana].push(valor);
+    return { ...d, valor, media, deltaPct: media && media > 0 ? (valor - media) / media * 100 : null };
+  });
+}
+
+let DIA_SEMANA_METRICA = 'faturado';
+let DIA_SEMANA_JANELA = 6;
+
+function setDiaSemanaJanela(w, btn) {
+  DIA_SEMANA_JANELA = w;
+  document.querySelectorAll('#diaSemanaJanelaChips .chip').forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
+  renderDiaSemana();
+}
+
+function renderDiaSemana(metric, btn) {
+  if (metric) DIA_SEMANA_METRICA = metric;
+  if (btn) { document.querySelectorAll('#diaSemanaMetricChips .chip').forEach(c => c.classList.remove('on')); btn.classList.add('on'); }
+
+  const specs = {
+    faturado: { color: 'var(--blue)', fmt: fmtBRL },
+    pessoas: { color: 'var(--aqua)', fmt: fmtNum },
+    comandas: { color: 'var(--yellow)', fmt: fmtNum },
+    ticketMedio: { color: 'var(--orange)', fmt: fmtBRL }
+  };
+  const spec = specs[DIA_SEMANA_METRICA];
+
+  const all = dailySeries();
+  const comMedia = withWeekdayAverage(all, DIA_SEMANA_METRICA, DIA_SEMANA_JANELA);
+  const janelaDias = DIA_SEMANA_JANELA * 7;
+  const visiveis = comMedia.slice(-janelaDias);
+
+  document.getElementById('diaSemanaPeriodo').textContent = visiveis.length
+    ? `${visiveis[0].data.split('-').reverse().join('/')} – ${visiveis[visiveis.length-1].data.split('-').reverse().join('/')}`
+    : '';
+
+  if (visiveis.length === 0) {
+    document.getElementById('diaSemanaWrap').innerHTML = '<div class="no-results">Sem dados de turno ainda</div>';
+    return;
+  }
+
+  const barW = 22, gap = 8, padL = 50, padB = 32, padT = 16, padR = 10;
+  const plotH = 200;
+  const W = padL + padR + visiveis.length * (barW + gap);
+  const H = padT + plotH + padB;
+
+  const maxVal = Math.max(...visiveis.map(d => d.valor), ...visiveis.map(d => d.media || 0), 1);
+  const y = v => padT + plotH - (v / maxVal) * plotH;
+  const barH = v => (v / maxVal) * plotH;
+
+  const bars = visiveis.map((d, i) => {
+    const x = padL + i * (barW + gap);
+    const cor = d.media == null ? 'var(--border2,#D0CCC3)' : (d.deltaPct >= 0 ? 'var(--green)' : 'var(--red)');
+    const diaMes = d.data.slice(8,10);
+    const mediaTick = d.media != null
+      ? `<line x1="${x-2}" y1="${y(d.media).toFixed(1)}" x2="${x+barW+2}" y2="${y(d.media).toFixed(1)}" stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="2,2"/>`
+      : '';
+    const tooltip = `${d.semana} ${diaMes} — ${spec.fmt(d.valor)}${d.media!=null ? ` (média: ${spec.fmt(d.media)}, ${d.deltaPct>=0?'+':''}${d.deltaPct.toFixed(0)}%)` : ' (sem histórico)'}`;
+    return `<g>
+      <rect x="${x}" y="${y(d.valor).toFixed(1)}" width="${barW}" height="${barH(d.valor).toFixed(1)}" fill="${cor}" rx="2"><title>${tooltip}</title></rect>
+      ${mediaTick}
+      <text x="${x+barW/2}" y="${padT+plotH+14}" text-anchor="middle" class="dia-semana-bar-lbl">${d.semana[0]}</text>
+      <text x="${x+barW/2}" y="${padT+plotH+25}" text-anchor="middle" class="dia-semana-bar-lbl">${diaMes}</text>
+    </g>`;
+  }).join('');
+
+  const svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <line x1="${padL-4}" y1="${padT}" x2="${padL-4}" y2="${padT+plotH}" stroke="var(--border)"/>
+    <line x1="${padL-4}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="var(--border)"/>
+    <text x="4" y="${padT+8}" class="axis-lbl">${spec.fmt(maxVal)}</text>
+    <text x="4" y="${padT+plotH}" class="axis-lbl">0</text>
+    ${bars}
+  </svg>`;
+
+  document.getElementById('diaSemanaWrap').innerHTML = svg;
+}
+
 // ===== NAVEGAÇÃO =====
 function showPage(page) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page===page));
@@ -736,6 +842,7 @@ async function loadAll() {
   renderEquipe();
   renderImportacoes();
   renderGraficos();
+  renderDiaSemana();
 }
 
 // ===== REDES SOCIAIS =====
