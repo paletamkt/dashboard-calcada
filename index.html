@@ -244,6 +244,16 @@
         <button class="chip" data-w="8" onclick="setDiaSemanaJanela(8, this)">8 semanas</button>
         <button class="chip" data-w="12" onclick="setDiaSemanaJanela(12, this)">12 semanas</button>
       </div>
+      <div class="chip-group" id="diaSemanaFiltroChips" style="margin-top:8px">
+        <button class="chip on" data-dia="" onclick="setDiaSemanaFiltro('', this)">Todos os dias</button>
+        <button class="chip" data-dia="Dom" onclick="setDiaSemanaFiltro('Dom', this)">Dom</button>
+        <button class="chip" data-dia="Seg" onclick="setDiaSemanaFiltro('Seg', this)">Seg</button>
+        <button class="chip" data-dia="Ter" onclick="setDiaSemanaFiltro('Ter', this)">Ter</button>
+        <button class="chip" data-dia="Qua" onclick="setDiaSemanaFiltro('Qua', this)">Qua</button>
+        <button class="chip" data-dia="Qui" onclick="setDiaSemanaFiltro('Qui', this)">Qui</button>
+        <button class="chip" data-dia="Sex" onclick="setDiaSemanaFiltro('Sex', this)">Sex</button>
+        <button class="chip" data-dia="Sáb" onclick="setDiaSemanaFiltro('Sáb', this)">Sáb</button>
+      </div>
       <div class="dia-semana-legend">
         <span><i class="dot dot-up"></i> Acima da média do dia</span>
         <span><i class="dot dot-dn"></i> Abaixo da média do dia</span>

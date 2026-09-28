@@ -155,12 +155,33 @@ function withWeekdayAverage(days, metric, janelaSemanas) {
   });
 }
 
+// Média de referência extra (só aparece no tooltip, não muda a cor da barra
+// nem o visual — pra não sobrecarregar o gráfico): mesma dia da semana,
+// dentro do MESMO MÊS CALENDÁRIO, um ano atrás. Ex.: pra um sábado de
+// setembro/26, olha a média dos sábados de setembro/25.
+function mediaMesmoMesAnoPassado(all, dateStr, semana, metric) {
+  const ano = dateStr.slice(0, 4), mes = dateStr.slice(5, 7);
+  const anoAnterior = String(Number(ano) - 1);
+  const valores = all.filter(d => d.semana === semana && d.data.slice(0,4) === anoAnterior && d.data.slice(5,7) === mes).map(d => d[metric]);
+  if (valores.length === 0) return null;
+  return valores.reduce((s, v) => s + v, 0) / valores.length;
+}
+
 let DIA_SEMANA_METRICA = 'faturado';
 let DIA_SEMANA_JANELA = 6;
+let DIA_SEMANA_FILTRO = '';
+const DIA_SEMANA_NOMES = { Dom:'Domingos', Seg:'Segundas', Ter:'Terças', Qua:'Quartas', Qui:'Quintas', Sex:'Sextas', Sáb:'Sábados' };
 
 function setDiaSemanaJanela(w, btn) {
   DIA_SEMANA_JANELA = w;
   document.querySelectorAll('#diaSemanaJanelaChips .chip').forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
+  renderDiaSemana();
+}
+
+function setDiaSemanaFiltro(dia, btn) {
+  DIA_SEMANA_FILTRO = dia;
+  document.querySelectorAll('#diaSemanaFiltroChips .chip').forEach(c => c.classList.remove('on'));
   btn.classList.add('on');
   renderDiaSemana();
 }
@@ -179,11 +200,16 @@ function renderDiaSemana(metric, btn) {
 
   const all = dailySeries();
   const comMedia = withWeekdayAverage(all, DIA_SEMANA_METRICA, DIA_SEMANA_JANELA);
-  const janelaDias = DIA_SEMANA_JANELA * 7;
-  const visiveis = comMedia.slice(-janelaDias);
+  // Sem filtro: últimas N semanas em dias corridos. Com filtro de dia da
+  // semana: últimas N OCORRÊNCIAS daquele dia específico (isola o dia,
+  // sem o ruído dos outros 6 dias da semana misturados no eixo X).
+  const visiveis = DIA_SEMANA_FILTRO
+    ? comMedia.filter(d => d.semana === DIA_SEMANA_FILTRO).slice(-DIA_SEMANA_JANELA)
+    : comMedia.slice(-(DIA_SEMANA_JANELA * 7));
 
+  const rotuloDia = DIA_SEMANA_FILTRO ? `${DIA_SEMANA_NOMES[DIA_SEMANA_FILTRO]} · ` : '';
   document.getElementById('diaSemanaPeriodo').textContent = visiveis.length
-    ? `${visiveis[0].data.split('-').reverse().join('/')} – ${visiveis[visiveis.length-1].data.split('-').reverse().join('/')}`
+    ? `${rotuloDia}${visiveis[0].data.split('-').reverse().join('/')} – ${visiveis[visiveis.length-1].data.split('-').reverse().join('/')}`
     : '';
 
   if (visiveis.length === 0) {
@@ -191,7 +217,11 @@ function renderDiaSemana(metric, btn) {
     return;
   }
 
-  const barW = 22, gap = 8, padL = 50, padB = 32, padT = 16, padR = 10;
+  // Isolado num dia só = poucas barras, então alarga pra não ficar um gráfico
+  // espremido num canto — junto o mês (dd/mm) no rótulo, já que "semana"
+  // fica redundante quando todo mundo é o mesmo dia.
+  const barW = DIA_SEMANA_FILTRO ? 40 : 22, gap = DIA_SEMANA_FILTRO ? 14 : 8;
+  const padL = 50, padB = 32, padT = 16, padR = 10;
   const plotH = 200;
   const W = padL + padR + visiveis.length * (barW + gap);
   const H = padT + plotH + padB;
@@ -203,16 +233,22 @@ function renderDiaSemana(metric, btn) {
   const bars = visiveis.map((d, i) => {
     const x = padL + i * (barW + gap);
     const cor = d.media == null ? 'var(--border2,#D0CCC3)' : (d.deltaPct >= 0 ? 'var(--green)' : 'var(--red)');
-    const diaMes = d.data.slice(8,10);
+    const diaMes = d.data.slice(8,10) + '/' + d.data.slice(5,7);
     const mediaTick = d.media != null
       ? `<line x1="${x-2}" y1="${y(d.media).toFixed(1)}" x2="${x+barW+2}" y2="${y(d.media).toFixed(1)}" stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="2,2"/>`
       : '';
-    const tooltip = `${d.semana} ${diaMes} — ${spec.fmt(d.valor)}${d.media!=null ? ` (média: ${spec.fmt(d.media)}, ${d.deltaPct>=0?'+':''}${d.deltaPct.toFixed(0)}%)` : ' (sem histórico)'}`;
+    const pctLbl = d.deltaPct != null
+      ? `<text x="${x+barW/2}" y="${y(d.valor)-6}" text-anchor="middle" class="dia-semana-pct" fill="${d.deltaPct>=0?'var(--green)':'var(--red)'}">${d.deltaPct>=0?'+':''}${d.deltaPct.toFixed(0)}%</text>`
+      : '';
+    const mediaAnoPassado = mediaMesmoMesAnoPassado(all, d.data, d.semana, DIA_SEMANA_METRICA);
+    const anoPassadoTxt = mediaAnoPassado != null ? ` · mesmo mês ano passado: ${spec.fmt(mediaAnoPassado)}` : '';
+    const tooltip = `${d.semana} ${diaMes} — ${spec.fmt(d.valor)}${d.media!=null ? ` (média ${DIA_SEMANA_JANELA}sem: ${spec.fmt(d.media)}, ${d.deltaPct>=0?'+':''}${d.deltaPct.toFixed(0)}%)` : ' (sem histórico)'}${anoPassadoTxt}`;
     return `<g>
       <rect x="${x}" y="${y(d.valor).toFixed(1)}" width="${barW}" height="${barH(d.valor).toFixed(1)}" fill="${cor}" rx="2"><title>${tooltip}</title></rect>
+      ${DIA_SEMANA_FILTRO ? pctLbl : ''}
       ${mediaTick}
-      <text x="${x+barW/2}" y="${padT+plotH+14}" text-anchor="middle" class="dia-semana-bar-lbl">${d.semana[0]}</text>
-      <text x="${x+barW/2}" y="${padT+plotH+25}" text-anchor="middle" class="dia-semana-bar-lbl">${diaMes}</text>
+      <text x="${x+barW/2}" y="${padT+plotH+14}" text-anchor="middle" class="dia-semana-bar-lbl">${DIA_SEMANA_FILTRO ? diaMes : d.semana[0]}</text>
+      ${DIA_SEMANA_FILTRO ? '' : `<text x="${x+barW/2}" y="${padT+plotH+25}" text-anchor="middle" class="dia-semana-bar-lbl">${d.data.slice(8,10)}</text>`}
     </g>`;
   }).join('');
 
