@@ -220,7 +220,12 @@ function renderDiaSemana(metric, btn) {
   // Isolado num dia só = poucas barras, então alarga pra não ficar um gráfico
   // espremido num canto — junto o mês (dd/mm) no rótulo, já que "semana"
   // fica redundante quando todo mundo é o mesmo dia.
-  const barW = DIA_SEMANA_FILTRO ? 40 : 22, gap = DIA_SEMANA_FILTRO ? 14 : 8;
+  // "Todos os dias" com janela grande (8/12 semanas) = muitas barras — nesse
+  // caso tira ornamento por barra (linha de média, rótulo em toda barra) e
+  // deixa só a cor contar a história, senão vira poluição visual.
+  const denso = !DIA_SEMANA_FILTRO && visiveis.length > 28;
+  const barW = DIA_SEMANA_FILTRO ? 40 : (denso ? 14 : 22);
+  const gap = DIA_SEMANA_FILTRO ? 14 : (denso ? 3 : 8);
   const padL = 50, padB = 32, padT = 16, padR = 10;
   const plotH = 200;
   const W = padL + padR + visiveis.length * (barW + gap);
@@ -234,7 +239,9 @@ function renderDiaSemana(metric, btn) {
     const x = padL + i * (barW + gap);
     const cor = d.media == null ? 'var(--border2,#D0CCC3)' : (d.deltaPct >= 0 ? 'var(--green)' : 'var(--red)');
     const diaMes = d.data.slice(8,10) + '/' + d.data.slice(5,7);
-    const mediaTick = d.media != null
+    // Sem a "denso": marca a média com uma linha tracejada em cada barra —
+    // isso só cabe bem quando são poucas barras (senão vira uma sopa de traços).
+    const mediaTick = (d.media != null && !denso)
       ? `<line x1="${x-2}" y1="${y(d.media).toFixed(1)}" x2="${x+barW+2}" y2="${y(d.media).toFixed(1)}" stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="2,2"/>`
       : '';
     const pctLbl = d.deltaPct != null
@@ -243,12 +250,15 @@ function renderDiaSemana(metric, btn) {
     const mediaAnoPassado = mediaMesmoMesAnoPassado(all, d.data, d.semana, DIA_SEMANA_METRICA);
     const anoPassadoTxt = mediaAnoPassado != null ? ` · mesmo mês ano passado: ${spec.fmt(mediaAnoPassado)}` : '';
     const tooltip = `${d.semana} ${diaMes} — ${spec.fmt(d.valor)}${d.media!=null ? ` (média ${DIA_SEMANA_JANELA}sem: ${spec.fmt(d.media)}, ${d.deltaPct>=0?'+':''}${d.deltaPct.toFixed(0)}%)` : ' (sem histórico)'}${anoPassadoTxt}`;
+    // Denso: só rotula o início de cada semana (a cada 7 barras), senão os
+    // rótulos de dd colidem uns nos outros.
+    const mostraRotulo = DIA_SEMANA_FILTRO || !denso || i % 7 === 0;
     return `<g>
       <rect x="${x}" y="${y(d.valor).toFixed(1)}" width="${barW}" height="${barH(d.valor).toFixed(1)}" fill="${cor}" rx="2"><title>${tooltip}</title></rect>
       ${DIA_SEMANA_FILTRO ? pctLbl : ''}
       ${mediaTick}
-      <text x="${x+barW/2}" y="${padT+plotH+14}" text-anchor="middle" class="dia-semana-bar-lbl">${DIA_SEMANA_FILTRO ? diaMes : d.semana[0]}</text>
-      ${DIA_SEMANA_FILTRO ? '' : `<text x="${x+barW/2}" y="${padT+plotH+25}" text-anchor="middle" class="dia-semana-bar-lbl">${d.data.slice(8,10)}</text>`}
+      ${mostraRotulo ? `<text x="${x+barW/2}" y="${padT+plotH+14}" text-anchor="middle" class="dia-semana-bar-lbl">${DIA_SEMANA_FILTRO ? diaMes : d.semana[0]}</text>` : ''}
+      ${(!DIA_SEMANA_FILTRO && mostraRotulo) ? `<text x="${x+barW/2}" y="${padT+plotH+25}" text-anchor="middle" class="dia-semana-bar-lbl">${d.data.slice(8,10)}</text>` : ''}
     </g>`;
   }).join('');
 
